@@ -1,4 +1,11 @@
 <resources>
     <string name="app_name">ergonomics-test</string>
     <string name="action_settings">Settings</string>
+    <string name="name">Name</string>
+    <string name="teste">teste</string>
+    <string name="name2">Name-2</string>
+    <string name="button">Button</string>
+    <string name="resposta_do_servidor">Resposta do servidor</string>
+    <string name="enviar">Enviar</string>
+    <string name="nome_da_nuvem">Nome da nuvem</string>
 </resources>
