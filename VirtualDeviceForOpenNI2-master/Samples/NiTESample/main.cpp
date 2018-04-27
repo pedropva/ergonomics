@@ -1,10 +1,10 @@
 /**
- * This is a simple example to show how to use the virtual device.
- * This sample will open an existed real device, read the depth frame with listener,
- * then copy to the virtual device.
- *
- * http://viml.nchc.org.tw/home/
- */
+* This is a simple example to show how to use the virtual device.
+* This sample will open an existed real device, read the depth frame with listener,
+* then copy to the virtual device.
+*
+* http://viml.nchc.org.tw/home/
+*/
 
 // STL Header
 #include <iostream>
@@ -30,26 +30,32 @@
 using namespace std;
 using namespace nite;
 
-int main( int, char** )
+int main(int, char**)
 {
 	openni::OpenNI::initialize();
 	openni::Device mDevice;
-	mDevice.open( openni::ANY_DEVICE );
+	mDevice.open(openni::ANY_DEVICE);
 	auto x = mDevice.getDeviceInfo();
 
 	openni::VideoStream vsDepth;
-	vsDepth.create( mDevice, openni::SENSOR_DEPTH );
+	vsDepth.create(mDevice, openni::SENSOR_DEPTH);
 	vsDepth.setMirroringEnabled(true);
 
 	openni::Device virDevice;
-	virDevice.open( "\\OpenNI2\\VirtualDevice\\Kinect" );
-	openni::VideoStream* virDepth = CreateVirtualStream( virDevice, vsDepth, []( const OniFrame& rF1,OniFrame& rF2 ){
+	virDevice.open("\\OpenNI2\\VirtualDevice\\Kinect");
+	openni::VideoStream* virDepth = CreateVirtualStream(virDevice, vsDepth, [](const OniFrame& rF1, OniFrame& rF2) {
 		string line;
 		ifstream myfile("corpo inteiro com noise (1).txt");
-		vector <vector<int>> dataFile;//vector of vectors with the data
-		int normalized = 0;
-		int biggestDepth = 0;
-		int smallestDepth = 0;
+		vector <vector<float>> dataFile;//vector of vectors with the data
+		float normalizedDepth = 0;
+		float normalizedX = 0;
+		float normalizedY = 0;
+		float biggestDepth = 0;
+		float smallestDepth = 0;
+		float biggestX = 0;
+		float smallestX = 0;
+		float biggestY = 0;
+		float smallestY = 0;
 
 		int nLine = 0;
 		openni::DepthPixel* pImg1 = reinterpret_cast<openni::DepthPixel*>(rF1.data);
@@ -58,36 +64,43 @@ int main( int, char** )
 		if (myfile.is_open()) {
 			while (getline(myfile, line))
 			{
-				vector<int> dataPoint;//vector with the data
+				vector<float> dataPoint;//vector with the data
 				char *cstr = new char[line.length() + 1];
 				strcpy(cstr, line.c_str());
 				char * pch;
 				pch = strtok(cstr, " ");
 				float i_float = std::stof(pch);
-				i_float *= 100000000;
-				int i_dec = static_cast<int>(i_float);
-				//dataFile.push_back(i_dec);
-				dataPoint.push_back(i_dec);
-				//cout << "X: " << i_dec << endl;
-				pch = strtok(NULL, " ");
-				i_float = std::stof(pch);
-				i_float *= 100000000;
-				i_dec = static_cast<int>(i_float);
-				//dataFile.push_back(i_dec);
-				dataPoint.push_back(i_dec);
-				//cout << "Y: " << i_dec << endl;
-				pch = strtok(NULL, " ");
-				i_float = std::stof(pch);
-				i_float *= 100000000;
-				i_dec = static_cast<int>(i_float);
-				//dataFile.push_back(i_dec);
-				if (i_dec < smallestDepth) { 
-					smallestDepth = i_dec; 
-				} else if(i_dec > biggestDepth){
-					biggestDepth = i_dec;
+				if (i_float < smallestX) {
+					smallestX = i_float;
 				}
-				dataPoint.push_back(i_dec);
-				//cout << "Z: " << i_dec << endl;
+				else if (i_float > biggestX) {
+					biggestX = i_float;
+				}
+				dataPoint.push_back(i_float);
+				//cout << "X: " << i_float << endl;
+
+				pch = strtok(NULL, " ");
+				i_float = std::stof(pch);
+				if (i_float < smallestY) {
+					smallestY = i_float;
+				}
+				else if (i_float > biggestY) {
+					biggestY = i_float;
+				}
+				dataPoint.push_back(i_float);
+				//cout << "Y: " << i_float << endl;
+
+				pch = strtok(NULL, " ");
+				i_float = std::stof(pch);
+				if (i_float < smallestDepth) {
+					smallestDepth = i_float;
+				}
+				else if (i_float > biggestDepth) {
+					biggestDepth = i_float;
+				}
+				dataPoint.push_back(i_float);
+				//cout << "Z: " << i_float << endl;
+
 				delete[] cstr;
 				//dataFile.push_back(line);
 				nLine++;
@@ -97,36 +110,28 @@ int main( int, char** )
 			cout << "Read " << nLine << " Lines!" << endl;
 			cout << "Finished reading the file, now sorting..." << endl;
 			sort(dataFile.begin(), dataFile.end(),
-				[](const vector<int>& a, const vector<int>& b) {
+				[](const vector<float>& a, const vector<float>& b) {
 				return (a[0]) > (b[0]);
 			});
 			int curX = 0;
-			//cout << rF2.width << " de width e height: " << rF2.height << endl;
-			//cout << rF1.width << " de width e height: " << rF1.height << endl;
+			for (int p = 0; p < dataFile.size(); p++) {
+				normalizedX = ((biggestX - dataFile[p][0]) / (biggestX - smallestX)) * rF2.width;//Normalizing X
+				normalizedY = ((biggestY - dataFile[p][1]) / (biggestY - smallestY)) * rF2.height;//Normalizing Y
+				normalizedDepth = ((biggestDepth - dataFile[p][2]) / (biggestDepth - smallestDepth)) * 3000;//Normalizing Depth Data (Z)
 
-			for (int y = 0; y < rF2.height; ++y)
-			{
-				//if (y < 7) {
-					//cout << dataFile[y][0] << " " << dataFile[y][1] << " " << dataFile[y][2] << endl;
-				//}
-				for (int x = 0; x < rF2.width; ++x)
-				{
-					int idx = x + y * rF2.width;//lines and collums as a array
-					const openni::DepthPixel& rDepth = pImg1[idx];
-					if (curX < dataFile.size() ) {//&& dataFile[curX][0] / 100000000 == y
-						
-						normalized = ((dataFile[curX][2] - biggestDepth) / (biggestDepth - smallestDepth))*3000;//Normalizing Data
-						//if (y < 7) {
-						//cout << "Normalized depth: "<< normalized << endl;
-						//}
-						pImg2[idx] = normalized; //assing the depth	
-						//pImg2[idx] = dataFile[curX][2];
-						curX++;
-					}
-					else {
-						pImg2[idx] = 0; //assing the depth
-					}
+				int newX = round(normalizedX);
+				int newY = round(normalizedY);
+				int newDepth = round(normalizedDepth);
+
+				if (p < 7) {
+					//cout << "Normalized X: " << normalizedX << " Original: " << dataFile[p][0] << " Biggest and smallest X: " << biggestX << "," << smallestX << endl;
+					//cout << "Normalized Y: " << normalizedY << " Original: " << dataFile[p][1] << " Biggest and smallest X: " << biggestY << "," << smallestY << endl;
+					//cout << "Normalized depth: " << normalizedDepth << " Original: " << dataFile[p][2] << " Biggest and smallest Depth: " << biggestDepth << "," << smallestDepth << endl;					
+					cout << "X: " << newX << " Y: " << newY << " Z: " << newDepth << endl;
+					cout << "Width: " << rF2.width << " Height: " << rF2.height << endl;
 				}
+				pImg2[newX + newY * rF2.width] = newDepth;
+				curX++;
 			}
 			cout << endl;
 		}
@@ -148,7 +153,7 @@ int main( int, char** )
 	virDepth->start();
 
 	// Initial NiTE
-	if( NiTE::initialize() != STATUS_OK )
+	if (NiTE::initialize() != STATUS_OK)
 	{
 		cerr << "NiTE initial error" << endl;
 		return -1;
@@ -156,114 +161,114 @@ int main( int, char** )
 
 	// create user tracker
 	UserTracker mUserTracker;
-	if( mUserTracker.create( &virDevice ) != STATUS_OK )
+	if (mUserTracker.create(&virDevice) != STATUS_OK)
 	{
 		cerr << "Can't create user tracker" << endl;
 		return -1;
 	}
 
 	// create OpenCV Window
-	cv::namedWindow( "User Image",  CV_WINDOW_AUTOSIZE );
+	cv::namedWindow("User Image", CV_WINDOW_AUTOSIZE);
 
 	// start
-	while( true )
+	while (true)
 	{
 		// get user frame
 		UserTrackerFrameRef	mUserFrame;
-		if( mUserTracker.readFrame( &mUserFrame )== nite::STATUS_OK )
+		if (mUserTracker.readFrame(&mUserFrame) == nite::STATUS_OK)
 		{
 			// get depth data and convert to OpenCV format
 			openni::VideoFrameRef vfDepthFrame = mUserFrame.getDepthFrame();
 			//cout << "Height: " << vfDepthFrame.getHeight() << " Width: " << vfDepthFrame.getWidth() << endl;
-			const cv::Mat mImageDepth( vfDepthFrame.getHeight(), vfDepthFrame.getWidth(), CV_16UC1, const_cast<void*>( vfDepthFrame.getData() ) );
+			const cv::Mat mImageDepth(vfDepthFrame.getHeight(), vfDepthFrame.getWidth(), CV_16UC1, const_cast<void*>(vfDepthFrame.getData()));
 			// re-map depth data [0,Max] to [0,255]
 			cv::Mat mScaledDepth;
-			mImageDepth.convertTo( mScaledDepth, CV_8U, 255.0 / 10000 );
+			mImageDepth.convertTo(mScaledDepth, CV_8U, 255.0 / 10000);
 
 			// convert gray-scale to color
 			cv::Mat mImageBGR;
-			cv::cvtColor( mScaledDepth, mImageBGR, CV_GRAY2BGR );
+			cv::cvtColor(mScaledDepth, mImageBGR, CV_GRAY2BGR);
 
 			// get users data
 			const nite::Array<UserData>& aUsers = mUserFrame.getUsers();
-			for( int i = 0; i < aUsers.getSize(); ++ i )
+			for (int i = 0; i < aUsers.getSize(); ++i)
 			{
 				const UserData& rUser = aUsers[i];
 
 				// check user status
-				if( rUser.isNew() )
+				if (rUser.isNew())
 				{
 					cout << "New User [" << rUser.getId() << "] found." << endl;
 					// 5a. start tracking for new user
-					mUserTracker.startSkeletonTracking( rUser.getId() );
+					mUserTracker.startSkeletonTracking(rUser.getId());
 				}
-				else if( rUser.isLost() )
+				else if (rUser.isLost())
 				{
-					cout << "User [" << rUser.getId()  << "] lost." << endl;
+					cout << "User [" << rUser.getId() << "] lost." << endl;
 				}
 
-				if( rUser.isVisible() )
+				if (rUser.isVisible())
 				{
 					// get user skeleton
 					const Skeleton& rSkeleton = rUser.getSkeleton();
-					if( rSkeleton.getState() == SKELETON_TRACKED )
+					if (rSkeleton.getState() == SKELETON_TRACKED)
 					{
 						// build joints array
 						nite::SkeletonJoint aJoints[15];
-						aJoints[ 0] = rSkeleton.getJoint( JOINT_HEAD );
-						aJoints[ 1] = rSkeleton.getJoint( JOINT_NECK );
-						aJoints[ 2] = rSkeleton.getJoint( JOINT_LEFT_SHOULDER );
-						aJoints[ 3] = rSkeleton.getJoint( JOINT_RIGHT_SHOULDER );
-						aJoints[ 4] = rSkeleton.getJoint( JOINT_LEFT_ELBOW );
-						aJoints[ 5] = rSkeleton.getJoint( JOINT_RIGHT_ELBOW );
-						aJoints[ 6] = rSkeleton.getJoint( JOINT_LEFT_HAND );
-						aJoints[ 7] = rSkeleton.getJoint( JOINT_RIGHT_HAND );
-						aJoints[ 8] = rSkeleton.getJoint( JOINT_TORSO );
-						aJoints[ 9] = rSkeleton.getJoint( JOINT_LEFT_HIP );
-						aJoints[10] = rSkeleton.getJoint( JOINT_RIGHT_HIP );
-						aJoints[11] = rSkeleton.getJoint( JOINT_LEFT_KNEE );
-						aJoints[12] = rSkeleton.getJoint( JOINT_RIGHT_KNEE );
-						aJoints[13] = rSkeleton.getJoint( JOINT_LEFT_FOOT );
-						aJoints[14] = rSkeleton.getJoint( JOINT_RIGHT_FOOT );
+						aJoints[0] = rSkeleton.getJoint(JOINT_HEAD);
+						aJoints[1] = rSkeleton.getJoint(JOINT_NECK);
+						aJoints[2] = rSkeleton.getJoint(JOINT_LEFT_SHOULDER);
+						aJoints[3] = rSkeleton.getJoint(JOINT_RIGHT_SHOULDER);
+						aJoints[4] = rSkeleton.getJoint(JOINT_LEFT_ELBOW);
+						aJoints[5] = rSkeleton.getJoint(JOINT_RIGHT_ELBOW);
+						aJoints[6] = rSkeleton.getJoint(JOINT_LEFT_HAND);
+						aJoints[7] = rSkeleton.getJoint(JOINT_RIGHT_HAND);
+						aJoints[8] = rSkeleton.getJoint(JOINT_TORSO);
+						aJoints[9] = rSkeleton.getJoint(JOINT_LEFT_HIP);
+						aJoints[10] = rSkeleton.getJoint(JOINT_RIGHT_HIP);
+						aJoints[11] = rSkeleton.getJoint(JOINT_LEFT_KNEE);
+						aJoints[12] = rSkeleton.getJoint(JOINT_RIGHT_KNEE);
+						aJoints[13] = rSkeleton.getJoint(JOINT_LEFT_FOOT);
+						aJoints[14] = rSkeleton.getJoint(JOINT_RIGHT_FOOT);
 
 						// convert joint position to image
 						cv::Point2f aPoint[15];
-						for( int  s = 0; s < 15; ++ s )
+						for (int s = 0; s < 15; ++s)
 						{
 							const Point3f& rPos = aJoints[s].getPosition();
-							mUserTracker.convertJointCoordinatesToDepth( rPos.x, rPos.y, rPos.z, &(aPoint[s].x), &(aPoint[s].y) );
+							mUserTracker.convertJointCoordinatesToDepth(rPos.x, rPos.y, rPos.z, &(aPoint[s].x), &(aPoint[s].y));
 						}
 
 						// draw line
-						cv::line( mImageBGR, aPoint[ 0], aPoint[ 1], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[ 1], aPoint[ 2], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[ 1], aPoint[ 3], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[ 2], aPoint[ 4], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[ 3], aPoint[ 5], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[ 4], aPoint[ 6], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[ 5], aPoint[ 7], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[ 1], aPoint[ 8], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[ 8], aPoint[ 9], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[ 8], aPoint[10], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[ 9], aPoint[11], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[10], aPoint[12], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[11], aPoint[13], cv::Scalar( 255, 0, 0 ), 3 );
-						cv::line( mImageBGR, aPoint[12], aPoint[14], cv::Scalar( 255, 0, 0 ), 3 );
+						cv::line(mImageBGR, aPoint[0], aPoint[1], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[1], aPoint[2], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[1], aPoint[3], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[2], aPoint[4], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[3], aPoint[5], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[4], aPoint[6], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[5], aPoint[7], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[1], aPoint[8], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[8], aPoint[9], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[8], aPoint[10], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[9], aPoint[11], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[10], aPoint[12], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[11], aPoint[13], cv::Scalar(255, 0, 0), 3);
+						cv::line(mImageBGR, aPoint[12], aPoint[14], cv::Scalar(255, 0, 0), 3);
 
 						// draw joint
-						for( int  s = 0; s < 15; ++ s )
+						for (int s = 0; s < 15; ++s)
 						{
-							if( aJoints[s].getPositionConfidence() > 0.5 )
-								cv::circle( mImageBGR, aPoint[s], 3, cv::Scalar( 0, 0, 255 ), 2 );
+							if (aJoints[s].getPositionConfidence() > 0.5)
+								cv::circle(mImageBGR, aPoint[s], 3, cv::Scalar(0, 0, 255), 2);
 							else
-								cv::circle( mImageBGR, aPoint[s], 3, cv::Scalar( 0, 255, 0 ), 2 );
+								cv::circle(mImageBGR, aPoint[s], 3, cv::Scalar(0, 255, 0), 2);
 						}
 					}
 				}
 			}
 
 			// show image
-			cv::imshow( "User Image", mImageBGR );
+			cv::imshow("User Image", mImageBGR);
 
 			mUserFrame.release();
 		}
@@ -273,7 +278,7 @@ int main( int, char** )
 		}
 
 		// check keyboard
-		if( cv::waitKey( 1 ) == 'q' )
+		if (cv::waitKey(1) == 'q')
 			break;
 	}
 
