@@ -10,7 +10,7 @@
 #include <iostream>
 
 // glut Header
-#include "./GL/glut.h"
+#include <GL/glut.h>
 
 // OpenNI Header
 #include <OpenNI.h>

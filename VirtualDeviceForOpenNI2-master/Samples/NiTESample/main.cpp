@@ -10,14 +10,21 @@
 #include <iostream>
 
 // OpenCV Header
-#include "opencv2/core/core.hpp"
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 // NiTE Header
 #include <NiTE.h>
 
 #include "VirtualDeviceHelper.h"
+
+//file operations
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <algorithm>    // std::sort
 
 // namespace
 using namespace std;
@@ -37,23 +44,106 @@ int main( int, char** )
 	openni::Device virDevice;
 	virDevice.open( "\\OpenNI2\\VirtualDevice\\Kinect" );
 	openni::VideoStream* virDepth = CreateVirtualStream( virDevice, vsDepth, []( const OniFrame& rF1,OniFrame& rF2 ){
+		string line;
+		ifstream myfile("corpo inteiro com noise (1).txt");
+		vector <vector<int>> dataFile;//vector of vectors with the data
+		int normalized = 0;
+		int biggestDepth = 0;
+		int smallestDepth = 0;
+
+		int nLine = 0;
 		openni::DepthPixel* pImg1 = reinterpret_cast<openni::DepthPixel*>(rF1.data);
 		openni::DepthPixel* pImg2 = reinterpret_cast<openni::DepthPixel*>(rF2.data);
-
-		for( int y = 0; y < rF2.height; ++ y )
-		{
-			for( int x = 0; x < rF2.width; ++ x )
+		//cout << rF2.height << "<-height | width->" << rF2.width;
+		if (myfile.is_open()) {
+			while (getline(myfile, line))
 			{
-				int idx = x + y * rF2.width;
-				const openni::DepthPixel& rDepth = pImg1[ idx ];
-				//if( rDepth > 3000 )
-					//pImg2[ idx ] = 0;
-				//else
-				pImg2[ idx ] = rDepth;
+				vector<int> dataPoint;//vector with the data
+				char *cstr = new char[line.length() + 1];
+				strcpy(cstr, line.c_str());
+				char * pch;
+				pch = strtok(cstr, " ");
+				float i_float = std::stof(pch);
+				i_float *= 100000000;
+				int i_dec = static_cast<int>(i_float);
+				//dataFile.push_back(i_dec);
+				dataPoint.push_back(i_dec);
+				//cout << "X: " << i_dec << endl;
+				pch = strtok(NULL, " ");
+				i_float = std::stof(pch);
+				i_float *= 100000000;
+				i_dec = static_cast<int>(i_float);
+				//dataFile.push_back(i_dec);
+				dataPoint.push_back(i_dec);
+				//cout << "Y: " << i_dec << endl;
+				pch = strtok(NULL, " ");
+				i_float = std::stof(pch);
+				i_float *= 100000000;
+				i_dec = static_cast<int>(i_float);
+				//dataFile.push_back(i_dec);
+				if (i_dec < smallestDepth) { 
+					smallestDepth = i_dec; 
+				} else if(i_dec > biggestDepth){
+					biggestDepth = i_dec;
+				}
+				dataPoint.push_back(i_dec);
+				//cout << "Z: " << i_dec << endl;
+				delete[] cstr;
+				//dataFile.push_back(line);
+				nLine++;
+				dataFile.push_back(dataPoint);
+			}
+			myfile.close();
+			cout << "Read " << nLine << " Lines!" << endl;
+			cout << "Finished reading the file, now sorting..." << endl;
+			sort(dataFile.begin(), dataFile.end(),
+				[](const vector<int>& a, const vector<int>& b) {
+				return (a[0]) > (b[0]);
+			});
+			int curX = 0;
+			//cout << rF2.width << " de width e height: " << rF2.height << endl;
+			//cout << rF1.width << " de width e height: " << rF1.height << endl;
+
+			for (int y = 0; y < rF2.height; ++y)
+			{
+				//if (y < 7) {
+					//cout << dataFile[y][0] << " " << dataFile[y][1] << " " << dataFile[y][2] << endl;
+				//}
+				for (int x = 0; x < rF2.width; ++x)
+				{
+					int idx = x + y * rF2.width;//lines and collums as a array
+					const openni::DepthPixel& rDepth = pImg1[idx];
+					if (curX < dataFile.size() ) {//&& dataFile[curX][0] / 100000000 == y
+						
+						normalized = ((dataFile[curX][2] - biggestDepth) / (biggestDepth - smallestDepth))*3000;//Normalizing Data
+						//if (y < 7) {
+						//cout << "Normalized depth: "<< normalized << endl;
+						//}
+						pImg2[idx] = normalized; //assing the depth	
+						//pImg2[idx] = dataFile[curX][2];
+						curX++;
+					}
+					else {
+						pImg2[idx] = 0; //assing the depth
+					}
+				}
+			}
+			cout << endl;
+		}
+		else {
+			cerr << "File couldnt be opened" << endl;
+			for (int y = 0; y < rF2.height; ++y)
+			{
+				if (y < 7) {
+				}
+				for (int x = 0; x < rF2.width; ++x)
+				{
+					int idx = x + y * rF2.width;//lines and collums as a array
+					pImg2[idx] = 0; //assing the depth
+				}
 			}
 		}
-	} );
-
+	});
 	vsDepth.start();
 	virDepth->start();
 
@@ -66,7 +156,7 @@ int main( int, char** )
 
 	// create user tracker
 	UserTracker mUserTracker;
-	if( mUserTracker.create( &mDevice ) != STATUS_OK )
+	if( mUserTracker.create( &virDevice ) != STATUS_OK )
 	{
 		cerr << "Can't create user tracker" << endl;
 		return -1;
@@ -84,7 +174,7 @@ int main( int, char** )
 		{
 			// get depth data and convert to OpenCV format
 			openni::VideoFrameRef vfDepthFrame = mUserFrame.getDepthFrame();
-			cout << "Height: "<<vfDepthFrame.getHeight()<< "Width: "<< vfDepthFrame.getWidth() << endl;
+			//cout << "Height: " << vfDepthFrame.getHeight() << " Width: " << vfDepthFrame.getWidth() << endl;
 			const cv::Mat mImageDepth( vfDepthFrame.getHeight(), vfDepthFrame.getWidth(), CV_16UC1, const_cast<void*>( vfDepthFrame.getData() ) );
 			// re-map depth data [0,Max] to [0,255]
 			cv::Mat mScaledDepth;

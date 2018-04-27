@@ -15,10 +15,6 @@
 // Virtual Device Header
 #include "..\..\VirtualDevice\VirtualDevice.h"
 
-// basic file operations
-#include <iostream>
-#include <fstream>
-
 // namespace
 using namespace std;
 using namespace openni;
@@ -33,8 +29,6 @@ public:
 
 	void onNewFrame( openni::VideoStream& rStream )
 	{
-		ofstream myfile;
-		myfile.open("data.txt", ios::app);
 		openni::VideoFrameRef mFrame;
 		// read frame from real video stream
 		if( rStream.readFrame( &mFrame ) == openni::STATUS_OK )
@@ -46,7 +40,7 @@ public:
 				// type casting
 				const DepthPixel* pRealData = reinterpret_cast<const DepthPixel*>( mFrame.getData() );
 				DepthPixel* pVirData = reinterpret_cast<DepthPixel*>( pFrame->data );
-				cout << mFrame.getHeight() <<"<-height | width->" << mFrame.getWidth();
+
 				// read data from the frame of real sensor, and write to the frame of virtual sensor
 				for( int y = 0; y < mFrame.getHeight(); ++ y )
 				{
@@ -54,8 +48,6 @@ public:
 					{
 						int idx = x + y * mFrame.getWidth();
 						pVirData[idx] = pRealData[idx];
-						//cout << pRealData[idx] << " ";
-						
 					}
 				}
 
@@ -63,7 +55,6 @@ public:
 				m_rVStream.invoke( SET_VIRTUAL_STREAM_IMAGE, pFrame );
 			}
 		}
-		myfile.close();
 	}
 
 protected:

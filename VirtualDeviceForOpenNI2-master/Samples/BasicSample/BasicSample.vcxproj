@@ -99,7 +99,7 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>OpenNI2.lib;XnLib.lib;NiTE2.lib</AdditionalDependencies>
+      <AdditionalDependencies>OpenNI2.lib;XnLib.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(OPENNI2_LIB);;$(OpenNI_SDK_Path)\Bin\$(Platform)-$(Configuration)\</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
