@@ -426,15 +426,7 @@ public class PointCloudActivity extends Activity {
         TangoPointCloudData pointCloud = mPointCloudManager.getLatestPointCloud();
         Vector3 fixPoint=null;
         if (pointCloud != null) {
-            // Calculate the depth camera pose at the last point cloud update.
-            TangoSupport.MatrixTransformData transform =
-                    TangoSupport.getMatrixTransformAtTime(pointCloud.timestamp,
-                            TangoPoseData.COORDINATE_FRAME_START_OF_SERVICE,
-                            TangoPoseData.COORDINATE_FRAME_CAMERA_DEPTH,
-                            TangoSupport.ENGINE_OPENGL,
-                            TangoSupport.ENGINE_UNITY,
-                            TangoSupport.ROTATION_IGNORED);
-            if (transform.statusCode == TangoPoseData.POSE_VALID) {
+            if (firstTransform != null) {
                 float[] newCloud=fixPointCloud(pointCloud.points,firstTransform);
                 Log.i(TAG, "Primeiros 5 pontos:" +  printNFirstPoints(newCloud,5));
                 Log.i(TAG, "Ultimos 5 pontos:" +  print5LastPoints(newCloud,pointCloud.points.capacity()/4));

@@ -45,7 +45,8 @@ int main(int, char**)
 	virDevice.open("\\OpenNI2\\VirtualDevice\\Kinect");
 	openni::VideoStream* virDepth = CreateVirtualStream(virDevice, vsDepth, [](const OniFrame& rF1, OniFrame& rF2) {
 		string line;
-		ifstream myfile("corpo inteiro com noise (1).txt");
+		ifstream myfile;
+		myfile.open("data_tango_2.txt");
 		vector <vector<float>> dataFile;//vector of vectors with the data
 		float normalizedDepth = 0;
 		float normalizedX = 0;
@@ -61,7 +62,7 @@ int main(int, char**)
 		openni::DepthPixel* pImg1 = reinterpret_cast<openni::DepthPixel*>(rF1.data);
 		openni::DepthPixel* pImg2 = reinterpret_cast<openni::DepthPixel*>(rF2.data);
 		//cout << rF2.height << "<-height | width->" << rF2.width;
-		if (myfile.is_open()) {
+		if (!myfile.fail()) {
 			while (getline(myfile, line))
 			{
 				vector<float> dataPoint;//vector with the data
@@ -105,15 +106,9 @@ int main(int, char**)
 				//dataFile.push_back(line);
 				nLine++;
 				dataFile.push_back(dataPoint);
+				vector<float>().swap(dataPoint);// freeing the vector
 			}
-			myfile.close();
 			cout << "Read " << nLine << " Lines!" << endl;
-			cout << "Finished reading the file, now sorting..." << endl;
-			sort(dataFile.begin(), dataFile.end(),
-				[](const vector<float>& a, const vector<float>& b) {
-				return (a[0]) > (b[0]);
-			});
-			int curX = 0;
 			for (int p = 0; p < dataFile.size(); p++) {
 				normalizedX = ((biggestX - dataFile[p][0]) / (biggestX - smallestX)) * rF2.width;//Normalizing X
 				normalizedY = ((biggestY - dataFile[p][1]) / (biggestY - smallestY)) * rF2.height;//Normalizing Y
@@ -127,11 +122,23 @@ int main(int, char**)
 					//cout << "Normalized X: " << normalizedX << " Original: " << dataFile[p][0] << " Biggest and smallest X: " << biggestX << "," << smallestX << endl;
 					//cout << "Normalized Y: " << normalizedY << " Original: " << dataFile[p][1] << " Biggest and smallest X: " << biggestY << "," << smallestY << endl;
 					//cout << "Normalized depth: " << normalizedDepth << " Original: " << dataFile[p][2] << " Biggest and smallest Depth: " << biggestDepth << "," << smallestDepth << endl;					
-					cout << "X: " << newX << " Y: " << newY << " Z: " << newDepth << endl;
-					cout << "Width: " << rF2.width << " Height: " << rF2.height << endl;
+					//cout << "X: " << newX << " Y: " << newY << " Z: " << newDepth << endl;
+					//cout << "Width: " << rF2.width << " Height: " << rF2.height << endl;
 				}
 				pImg2[newX + newY * rF2.width] = newDepth;
-				curX++;
+			}
+			for (int y = 0; y < rF2.height; ++y)
+			{
+				if (y < 7) {
+				}
+				for (int x = 0; x < rF2.width; ++x)
+				{
+					int idx = x + y * rF2.width;//lines and collums as a array
+					//pImg2[idx] = pImg1[idx];
+					if (pImg2[idx] > 3000) {
+						pImg2[idx] = 0; //assing the depth
+					}
+				}
 			}
 			cout << endl;
 		}
@@ -148,6 +155,7 @@ int main(int, char**)
 				}
 			}
 		}
+		myfile.close();
 	});
 	vsDepth.start();
 	virDepth->start();
