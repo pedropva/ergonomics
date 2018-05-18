@@ -92,7 +92,7 @@ public class PointCloudActivity extends Activity {
     private TextView mSizeBufferTextView;
     TextView response;
     private double mPointCloudPreviousTimeStamp;
-    String ServerAddress = "192.168.200.94";
+    String ServerAddress = "192.168.200.71";
     String ServerPort = "30000";
     Button sendDataBt;
     float[] firstTransform=null;
@@ -139,17 +139,24 @@ public class PointCloudActivity extends Activity {
         verifyCameraPermissions(this);
 
         //creating the images folder
-        File mediaStorageDir = new File(dir);
-
-        if (!mediaStorageDir.exists()) {
-            Log.d("CameraDemo", "Dir doesnt exist");
-            if (!mediaStorageDir.mkdirs()) {
-                Log.e("App", "failed to create directory");
+        try{
+            File mediaStorageDir = new File(dir);
+            if (!mediaStorageDir.exists()) {
+                Log.d("CameraDemo", "Dir doesnt exist");
+                if (!mediaStorageDir.mkdirs()) {
+                    Log.e("App", "failed to create directory");
+                }
+                fileCount = (mediaStorageDir.listFiles().length-1);
+            }else{
+                Log.d("CameraDemo", "Dir exists");
+                fileCount = (mediaStorageDir.listFiles().length-1);
             }
-        }else{
-            Log.d("CameraDemo", "Dir exists");
+        } catch(Exception e) {
+
+            // if any error occurs
+            e.printStackTrace();
         }
-        fileCount = (mediaStorageDir.list().length-1);
+
 
         DisplayManager displayManager = (DisplayManager) getSystemService(DISPLAY_SERVICE);
         if (displayManager != null) {
@@ -464,6 +471,7 @@ public class PointCloudActivity extends Activity {
      * onSendData button onClick callback.
      */
     public void onSendDataClicked(View v) {
+
         String file = dir+fileCount+".jpg";
         File newfile = new File(file);
         try {
@@ -480,6 +488,7 @@ public class PointCloudActivity extends Activity {
         cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
         //start activity to get the camera photo en when the photo is taken then get the latest point cloud and send the image to server
         startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
+
     }
 
     /**
