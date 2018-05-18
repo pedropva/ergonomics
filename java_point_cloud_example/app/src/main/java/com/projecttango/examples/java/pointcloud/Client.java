@@ -4,6 +4,7 @@ package com.projecttango.examples.java.pointcloud;
  */
 
 import android.os.AsyncTask;
+import android.util.Log;
 import android.widget.TextView;
 
 import java.io.ByteArrayOutputStream;
@@ -26,12 +27,11 @@ public class Client extends AsyncTask<Void,Void,String> {
     int sizeBuffer;
     int numPoints;
     String mSent;
-    Client(String addr, int port, TextView textResponse,byte[] message,int sizeOfBuffer,int numPoints,String mSent) {
+    Client(String addr, int port, TextView textResponse,byte[] message) {
         dstAddress = addr;
         dstPort = port;
         this.textResponse = textResponse;
         data = message;
-        this.sizeBuffer = sizeOfBuffer;
         this.numPoints=numPoints;
         this.mSent = mSent;
     }
@@ -48,7 +48,18 @@ public class Client extends AsyncTask<Void,Void,String> {
             byte[] buffer = new byte[1024];
 
             DataOutputStream dOut = new DataOutputStream(socket.getOutputStream());
-
+            sizeBuffer = data.length;
+            dOut.writeByte(1);
+            dOut.writeInt(sizeBuffer);
+            //OutputStream output = socket.getOutputStream();
+            Log.d("ClientActivity", "C: image writing.");
+            for (int i = 0; i < data.length/4; i++) {
+                dOut.write(data,4*i,4);//
+                //dOut.flush(); // Send off the data
+            }
+            dOut.flush(); // Send off the data
+            Log.d("ClientActivity", "C: Sent.");
+/*
 // Send first message
             dOut.writeByte(1);
             dOut.writeInt(sizeBuffer);
@@ -58,7 +69,6 @@ public class Client extends AsyncTask<Void,Void,String> {
                 //dOut.flush(); // Send off the data
             }
             dOut.flush(); // Send off the data
-/*
 // Send the second message
             dOut.writeByte(2);
             dOut.writeUTF("foi?");
@@ -115,11 +125,7 @@ public class Client extends AsyncTask<Void,Void,String> {
     }
 
     private String verifyDataSent(String sent, String received) {
-        if(sent.matches(received)){
-            return "Success transmitting the message";
-        }else {
-            return "Failed transmitting the message";
-        }
+        return received;
     }
 
 }

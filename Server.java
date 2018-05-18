@@ -179,9 +179,17 @@ public class Server {
 			String msgReply = "Error while running the skeleton lib!";
 			System.out.println("Done Receiveing! Starting lib! ");
 			try{//run the libary
-				process = new ProcessBuilder("bin\\OpenPoseDemo.exe","--image_dir",".\\images" ,"--write_json",".\\output_openpose\\").start();
+				process = new ProcessBuilder("bin\\OpenPoseDemo.exe","--image_dir",".\\images" ,"--write_json",".\\output_openpose\\","--write_images",".\\output_photos_openpose\\" , "--display 0").start();
 				//bin\OpenPoseDemo.exe --image_dir examples\media\
 				//bin\OpenPoseDemo.exe -image_dir .\images -write_json .\output_openpose\
+				//bin\OpenPoseDemo.exe -image_dir .\images -write_json .\output_openpose\ --write_images .\output_photos_openpose\ --display 0
+				//-- keypoint_scale default:0 hint:"Scaling of the (x,y) coordinates of the final pose data array,
+				//the scale of the (x,y) coordinates that will be saved with the write_keypoint & write_keypoint_json flags. 
+				//0 to scale it to the original source resolution, 
+				//1 to scale it to the net output size (set with net_resolution), 
+				//2 to scale it to the final output size (set with resolution), 
+				//3 to scale it in the range [0,1], 
+				//and 4 for range [-1,1].
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

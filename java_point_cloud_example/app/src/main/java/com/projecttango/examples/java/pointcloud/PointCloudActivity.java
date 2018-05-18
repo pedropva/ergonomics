@@ -32,9 +32,15 @@ import com.google.tango.ux.UxExceptionEvent;
 import com.google.tango.ux.UxExceptionEventListener;
 
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.hardware.display.DisplayManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.view.Display;
 import android.view.MotionEvent;
@@ -47,6 +53,11 @@ import org.rajawali3d.math.Matrix4;
 import org.rajawali3d.math.vector.Vector3;
 import org.rajawali3d.scene.ASceneFrameCallback;
 import org.rajawali3d.surface.RajawaliSurfaceView;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -88,8 +99,21 @@ public class PointCloudActivity extends Activity {
     private boolean firstPointCLoud = true;
     private boolean mIsConnected = false;
     private boolean pointCloudIsSelected = false;
+    final String dir = "/sdcard/picFolder/";
+
 
     private double mPointCloudTimeToNextUpdate = UPDATE_INTERVAL_MS;
+
+    Integer fileCount = 0;
+    int TAKE_PHOTO_CODE = 0;
+    // Storage Permissions
+    private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private static final int REQUEST_CAMERA = 1;
+    private static String[] PERMISSIONS_STORAGE = {
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.CAMERA
+    };
 
     private int mDisplayRotation = 0;
 
@@ -109,6 +133,23 @@ public class PointCloudActivity extends Activity {
         mTangoUx = setupTangoUxAndLayout();
         mRenderer = new PointCloudRajawaliRenderer(this);
         setupRenderer();
+
+        //verifying permissions
+        verifyStoragePermissions(this);
+        verifyCameraPermissions(this);
+
+        //creating the images folder
+        File mediaStorageDir = new File(dir);
+
+        if (!mediaStorageDir.exists()) {
+            Log.d("CameraDemo", "Dir doesnt exist");
+            if (!mediaStorageDir.mkdirs()) {
+                Log.e("App", "failed to create directory");
+            }
+        }else{
+            Log.d("CameraDemo", "Dir exists");
+        }
+        fileCount = (mediaStorageDir.list().length-1);
 
         DisplayManager displayManager = (DisplayManager) getSystemService(DISPLAY_SERVICE);
         if (displayManager != null) {
@@ -423,31 +464,22 @@ public class PointCloudActivity extends Activity {
      * onSendData button onClick callback.
      */
     public void onSendDataClicked(View v) {
-        TangoPointCloudData pointCloud = mPointCloudManager.getLatestPointCloud();
-        Vector3 fixPoint=null;
-        if (pointCloud != null) {
-            if (firstTransform != null) {
-                float[] newCloud=fixPointCloud(pointCloud.points,firstTransform);
-                Log.i(TAG, "Primeiros 5 pontos:" +  printNFirstPoints(newCloud,5));
-                Log.i(TAG, "Ultimos 5 pontos:" +  print5LastPoints(newCloud,pointCloud.points.capacity()/4));
-                Log.i(TAG, "Numero de pontos:" + pointCloud.numPoints);
-                Log.i(TAG, "Capacidade de floats:" + pointCloud.points.capacity());
-                Log.i(TAG, "Tamanho do buffer de bytes:" + pointCloud.points.capacity()*4);
-                byte[] output = float2Byte(newCloud);
-                Client myClient = new Client(ServerAddress
-                        , Integer.parseInt(ServerPort)
-                        , response
-                        , output
-                        ,pointCloud.points.capacity()*4
-                        ,pointCloud.numPoints
-                        , print5LastPoints(newCloud,pointCloud.points.capacity()/4));
-                myClient.execute();
-                sendDataBt.setEnabled(false);
-                pointCloudIsSelected = true;
-            }else{
-                response.setText("Error while extracting point cloud.");
-            }
+        String file = dir+fileCount+".jpg";
+        File newfile = new File(file);
+        try {
+            newfile.createNewFile();
         }
+        catch (IOException e)
+        {
+            Log.e("CameraDemo", e.getMessage());
+        }
+
+        Uri outputFileUri = Uri.fromFile(newfile);
+
+        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
+        //start activity to get the camera photo en when the photo is taken then get the latest point cloud and send the image to server
+        startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
     }
 
     /**
@@ -455,7 +487,6 @@ public class PointCloudActivity extends Activity {
      */
     public void onClearClicked(View v) {
         response.setText("");
-        sendDataBt.setEnabled(true);
         pointCloudIsSelected = false;
     }
 
@@ -591,5 +622,87 @@ public class PointCloudActivity extends Activity {
                 finish();
             }
         });
+    }
+
+    /**
+     * Checks if the app has permission to write to device storage
+     *
+     * If the app does not has permission then the user will be prompted to grant permissions
+     *
+     * @param activity
+     */
+    public static void verifyStoragePermissions(Activity activity) {
+        // Check if we have write permission
+        int permission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            // We don't have permission so prompt the user
+            ActivityCompat.requestPermissions(
+                    activity,
+                    PERMISSIONS_STORAGE,
+                    REQUEST_EXTERNAL_STORAGE
+            );
+        }
+    }
+    public static void verifyCameraPermissions(Activity activity) {
+        // Check if we have write permission
+        int permission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.CAMERA);
+
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            // We don't have permission so prompt the user
+            ActivityCompat.requestPermissions(
+                    activity,
+                    PERMISSIONS_STORAGE,
+                    REQUEST_CAMERA
+            );
+        }
+    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        //get the latest point cloud
+        TangoPointCloudData pointCloud = mPointCloudManager.getLatestPointCloud();
+
+        if (requestCode == TAKE_PHOTO_CODE && resultCode == RESULT_OK && pointCloud != null && firstTransform != null) {
+
+
+            byte[] imgbyte = new byte[0];
+            String filepath =  "/sdcard/picFolder/"+fileCount+".jpg";
+            Log.d("CameraDemo", filepath);
+            File imagefile = new File(filepath);
+            if (imagefile.exists()){
+                Log.d("CameraDemo", "File exists");
+            }else {
+                Log.d("CameraDemo", "File doesnt exist");
+            }
+            FileInputStream fis = null;
+            try {
+                fis = new FileInputStream(imagefile);
+            } catch (FileNotFoundException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+
+            try {
+                imgbyte = new byte[fis.available()];
+                fis.read(imgbyte);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            //Bitmap bm = BitmapFactory.decodeStream(fis);
+            //imgbyte = getBytesFromBitmap(bm);
+
+            Log.d("CameraDemo", "Pic saved");
+            Log.d("CameraDemo", "Tamanho do buffer enviado:" + Integer.toString(imgbyte.length));
+            if(imgbyte.length>0){
+                Client myClient = new Client(ServerAddress
+                        , Integer.parseInt(ServerPort)
+                        , response
+                        , imgbyte);
+                myClient.execute();
+            }
+        }else{
+            response.setText("Error while extracting the image/point cloud.");
+        }
     }
 }
