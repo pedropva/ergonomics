@@ -17,6 +17,7 @@
 package com.projecttango.examples.java.pointcloud;
 
 import com.google.atap.tangoservice.Tango;
+import com.google.atap.tangoservice.TangoCameraIntrinsics;
 import com.google.atap.tangoservice.TangoConfig;
 import com.google.atap.tangoservice.TangoCoordinateFramePair;
 import com.google.atap.tangoservice.TangoErrorException;
@@ -25,6 +26,7 @@ import com.google.atap.tangoservice.TangoInvalidException;
 import com.google.atap.tangoservice.TangoOutOfDateException;
 import com.google.atap.tangoservice.TangoPointCloudData;
 import com.google.atap.tangoservice.TangoPoseData;
+import com.google.atap.tangoservice.experimental.TangoImageBuffer;
 import com.google.tango.support.TangoPointCloudManager;
 import com.google.tango.support.TangoSupport;
 import com.google.tango.ux.TangoUx;
@@ -39,6 +41,10 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
+import android.graphics.Matrix;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.hardware.display.DisplayManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -62,6 +68,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -96,7 +103,7 @@ public class PointCloudActivity extends Activity {
     private TextView mSizeBufferTextView;
     TextView response;
     private double mPointCloudPreviousTimeStamp;
-    String ServerAddress = "192.168.200.71";
+    String ServerAddress = "192.168.200.94";
     String ServerPort = "30000";
     Button sendDataBt;
     float[] firstTransform=null;
@@ -109,7 +116,7 @@ public class PointCloudActivity extends Activity {
     private double mPointCloudTimeToNextUpdate = UPDATE_INTERVAL_MS;
 
     Integer fileCount = 0;
-    int TAKE_PHOTO_CODE = 0;
+
     // Storage Permissions
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private static final int REQUEST_CAMERA = 1;
@@ -120,6 +127,11 @@ public class PointCloudActivity extends Activity {
     };
 
     private int mDisplayRotation = 0;
+
+    private volatile TangoImageBuffer mImageBuffer = null;
+    TangoPointCloudData pointCloud = null;
+    private boolean takePhoto = false;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -319,11 +331,41 @@ public class PointCloudActivity extends Activity {
                     mTangoUx.updateTangoEvent(event);
                 }
             }
+            /*
             @Override
             public void onFrameAvailable(int i) {
                 Log.d("CAMERA FRAME", "Tango frame called");
             }
+            */
         });
+        mTango.experimentalConnectOnFrameListener(TangoCameraIntrinsics.TANGO_CAMERA_COLOR, new
+                Tango.OnFrameAvailableListener() {
+                    @Override
+                    public void onFrameAvailable(TangoImageBuffer tangoImageBuffer, int id) {
+                        if(!
+                                takePhoto) {
+                            return;
+                        }
+                            if (id != TangoCameraIntrinsics.TANGO_CAMERA_COLOR || tangoImageBuffer == null) {
+                            return;
+                        }
+                        Log.d("CAMERA FRAME", "Tango frame called");
+                        TangoImageBuffer image = new TangoImageBuffer();
+                        image.frameNumber = tangoImageBuffer.frameNumber;
+                        image.timestamp = tangoImageBuffer.timestamp;
+                        image.stride = tangoImageBuffer.stride;
+                        image.format = tangoImageBuffer.format;
+                        image.width = tangoImageBuffer.width;
+                        image.height = tangoImageBuffer.height;
+                        image.data = ByteBuffer.allocateDirect(tangoImageBuffer.data.capacity());
+                        image.data.put(tangoImageBuffer.data);
+                        image.data.position(0);
+
+                        mImageBuffer = image;
+                        sendImage(mImageBuffer);
+                        takePhoto = false;
+                    }
+                });
     }
 
     /**
@@ -477,39 +519,13 @@ public class PointCloudActivity extends Activity {
      * onSendData button onClick callback.
      */
     public void onSendDataClicked(View v) {
-
-        String file = dir+fileCount+".jpg";
-        File newfile = new File(file);
-        try {
-            newfile.createNewFile();
+        pointCloud = mPointCloudManager.getLatestPointCloud();
+        pointCloudIsSelected = true;
+        if (pointCloud != null && firstTransform != null) {
+            takePhoto = true;
+        }else{
+            response.setText("Error while extracting the image/point cloud.");
         }
-        catch (IOException e)
-        {
-            Log.e("CameraDemo", e.getMessage());
-        }
-
-        Uri outputFileUri = Uri.fromFile(newfile);
-
-        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
-        // Synchronize against disconnecting while the service is being used in the OpenGL
-        // thread or in the UI thread.
-        // NOTE: DO NOT lock against this same object in the Tango callback thread.
-        // Tango.disconnect will block here until all Tango callback calls are finished.
-        // If you lock against this object in a Tango callback thread it will cause a deadlock.
-        synchronized (this) {
-            try {
-                mTangoUx.stop();
-                mTango.disconnect();
-                mIsConnected = false;
-                //start activity to get the camera photo en when the photo is taken then get the latest point cloud and send the image to server
-                startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
-            } catch (TangoErrorException e) {
-                Log.e(TAG, getString(R.string.exception_tango_error), e);
-            }
-        }
-
-
     }
 
     /**
@@ -693,18 +709,20 @@ public class PointCloudActivity extends Activity {
         bitmap.compress(Bitmap.CompressFormat.JPEG, 70, stream);
         return stream.toByteArray();
     }
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        //mTangoUx.start();
-        //bindTangoService();
-        //get the latest point cloud
-        TangoPointCloudData pointCloud = mPointCloudManager.getLatestPointCloud();
-        pointCloudIsSelected = true;
-        if (requestCode == TAKE_PHOTO_CODE && resultCode == RESULT_OK && pointCloud != null && firstTransform != null) {
+    public void sendImage(TangoImageBuffer buffer){
 
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        YuvImage yuvImage = new YuvImage(buffer.data.array(), ImageFormat.NV21,buffer.width, buffer.height, null);
+        yuvImage.compressToJpeg(new Rect(0, 0, buffer.width, buffer.height), 70, out);
+        byte[] imgbyte = out.toByteArray();
+        Bitmap storedBitmap = BitmapFactory.decodeByteArray(imgbyte, 0, imgbyte.length, null);
 
-            byte[] imgbyte = new byte[0];
+        Matrix mat = new Matrix();
+        mat.postRotate(90);  // angle is the desired angle you wish to rotate
+        storedBitmap = Bitmap.createBitmap(storedBitmap, 0, 0, storedBitmap.getWidth(), storedBitmap.getHeight(), mat, true);
+        imgbyte = getBytesFromBitmap(storedBitmap);
+        /*
+
             String filepath =  "/sdcard/picFolder/"+fileCount+".jpg";
             Log.d("CameraDemo", filepath);
             File imagefile = new File(filepath);
@@ -728,18 +746,17 @@ public class PointCloudActivity extends Activity {
             }
             Bitmap bm = BitmapFactory.decodeStream(fis);
             imgbyte = getBytesFromBitmap(bm);
+            */
 
-            Log.d("CameraDemo", "Pic saved");
-            Log.d("CameraDemo", "Tamanho do buffer enviado:" + Integer.toString(imgbyte.length));
-            if(imgbyte.length>0){
-                Client myClient = new Client(ServerAddress
-                        , Integer.parseInt(ServerPort)
-                        , response
-                        , imgbyte);
-                myClient.execute();
-            }
-        }else{
-            response.setText("Error while extracting the image/point cloud.");
+        Log.d("CameraDemo", "Tamanho do buffer enviado:" + Integer.toString(imgbyte.length));
+        if(imgbyte.length>0){
+            Client myClient = new Client(ServerAddress
+                    , Integer.parseInt(ServerPort)
+                    , response
+                    , imgbyte);
+            myClient.execute();
         }
+
     }
+
 }
