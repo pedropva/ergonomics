@@ -33,9 +33,12 @@ import com.google.tango.ux.UxExceptionEventListener;
 
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.hardware.display.DisplayManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -54,6 +57,7 @@ import org.rajawali3d.math.vector.Vector3;
 import org.rajawali3d.scene.ASceneFrameCallback;
 import org.rajawali3d.surface.RajawaliSurfaceView;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -253,6 +257,7 @@ public class PointCloudActivity extends Activity {
         // Use the default configuration plus add depth sensing.
         TangoConfig config = tango.getConfig(TangoConfig.CONFIG_TYPE_DEFAULT);
         config.putBoolean(TangoConfig.KEY_BOOLEAN_DEPTH, true);
+        config.putBoolean(TangoConfig.KEY_BOOLEAN_COLORCAMERA, true);
         config.putInt(TangoConfig.KEY_INT_DEPTH_MODE, TangoConfig.TANGO_DEPTH_MODE_POINT_CLOUD);
         return config;
     }
@@ -291,9 +296,6 @@ public class PointCloudActivity extends Activity {
                 final double averageDepth = getAveragedDepth(pointCloud.points,
                         pointCloud.numPoints);
 
-
-
-
                 mPointCloudTimeToNextUpdate -= pointCloudFrameDelta;
 
                 if (mPointCloudTimeToNextUpdate < 0.0) {
@@ -316,6 +318,10 @@ public class PointCloudActivity extends Activity {
                 if (mTangoUx != null) {
                     mTangoUx.updateTangoEvent(event);
                 }
+            }
+            @Override
+            public void onFrameAvailable(int i) {
+                Log.d("CAMERA FRAME", "Tango frame called");
             }
         });
     }
@@ -486,8 +492,23 @@ public class PointCloudActivity extends Activity {
 
         Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
-        //start activity to get the camera photo en when the photo is taken then get the latest point cloud and send the image to server
-        startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
+        // Synchronize against disconnecting while the service is being used in the OpenGL
+        // thread or in the UI thread.
+        // NOTE: DO NOT lock against this same object in the Tango callback thread.
+        // Tango.disconnect will block here until all Tango callback calls are finished.
+        // If you lock against this object in a Tango callback thread it will cause a deadlock.
+        synchronized (this) {
+            try {
+                mTangoUx.stop();
+                mTango.disconnect();
+                mIsConnected = false;
+                //start activity to get the camera photo en when the photo is taken then get the latest point cloud and send the image to server
+                startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
+            } catch (TangoErrorException e) {
+                Log.e(TAG, getString(R.string.exception_tango_error), e);
+            }
+        }
+
 
     }
 
@@ -612,6 +633,7 @@ public class PointCloudActivity extends Activity {
     /**
      * Query the display's rotation.
      */
+    @SuppressLint("WrongConstant")
     private void setDisplayRotation() {
         Display display = getWindowManager().getDefaultDisplay();
         mDisplayRotation = display.getRotation();
@@ -666,12 +688,19 @@ public class PointCloudActivity extends Activity {
             );
         }
     }
+    public byte[] getBytesFromBitmap(Bitmap bitmap) {
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 70, stream);
+        return stream.toByteArray();
+    }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        //mTangoUx.start();
+        //bindTangoService();
         //get the latest point cloud
         TangoPointCloudData pointCloud = mPointCloudManager.getLatestPointCloud();
-
+        pointCloudIsSelected = true;
         if (requestCode == TAKE_PHOTO_CODE && resultCode == RESULT_OK && pointCloud != null && firstTransform != null) {
 
 
@@ -688,18 +717,17 @@ public class PointCloudActivity extends Activity {
             try {
                 fis = new FileInputStream(imagefile);
             } catch (FileNotFoundException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                Log.e("Error",e.toString());
             }
 
             try {
                 imgbyte = new byte[fis.available()];
                 fis.read(imgbyte);
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.e("Error",e.toString());
             }
-            //Bitmap bm = BitmapFactory.decodeStream(fis);
-            //imgbyte = getBytesFromBitmap(bm);
+            Bitmap bm = BitmapFactory.decodeStream(fis);
+            imgbyte = getBytesFromBitmap(bm);
 
             Log.d("CameraDemo", "Pic saved");
             Log.d("CameraDemo", "Tamanho do buffer enviado:" + Integer.toString(imgbyte.length));
