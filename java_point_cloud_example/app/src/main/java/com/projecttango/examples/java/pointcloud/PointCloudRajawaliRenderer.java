@@ -22,14 +22,20 @@ import android.content.Context;
 import android.graphics.Color;
 import android.view.MotionEvent;
 
+import org.rajawali3d.Object3D;
+import org.rajawali3d.materials.Material;
 import org.rajawali3d.math.Matrix4;
 import org.rajawali3d.math.Quaternion;
 import org.rajawali3d.math.vector.Vector3;
+import org.rajawali3d.primitives.Line3D;
 import org.rajawali3d.renderer.RajawaliRenderer;
 
 import com.projecttango.examples.java.pointcloud.rajawali.FrustumAxes;
 import com.projecttango.examples.java.pointcloud.rajawali.Grid;
 import com.projecttango.examples.java.pointcloud.rajawali.PointCloud;
+
+import java.util.Stack;
+
 /**
  * Renderer for Point Cloud data.
  */
@@ -38,6 +44,9 @@ public class PointCloudRajawaliRenderer extends RajawaliRenderer {
     private static final float CAMERA_NEAR = 0.01f;
     private static final float CAMERA_FAR = 200f;
     private static final int MAX_NUMBER_OF_POINTS = 60000;
+
+    private Stack<Object3D> skeletonLines;
+
 
     private TouchViewHandler mTouchViewHandler;
 
@@ -82,6 +91,28 @@ public class PointCloudRajawaliRenderer extends RajawaliRenderer {
         mPointCloud.setPosition(openGlTdepthMatrix.getTranslation());
         // Conjugating the Quaternion is needed because Rajawali uses left-handed convention.
         mPointCloud.setOrientation(new Quaternion().fromMatrix(openGlTdepthMatrix).conjugate());
+    }
+
+    public void updateSkeleton(Stack<Vector3> skeletonPoints){
+        if (skeletonLines != null) {
+            for(int i=0;i<skeletonPoints.size();i++) {
+                getCurrentScene().removeChild(skeletonLines.pop());
+            }
+        }
+        if (skeletonPoints != null) {
+            for(int i=0;i<skeletonPoints.size()-1;i++){
+                Stack<Vector3> bone = new Stack();
+                bone.add(skeletonPoints.get(i));
+                bone.add(skeletonPoints.get(i+1));
+                skeletonLines.add(new Line3D(bone, 50, Color.RED));
+                Material m = new Material();
+                m.setColor(Color.RED);
+                skeletonLines.get(i).setMaterial(m);
+                getCurrentScene().addChild(skeletonLines.get(i));
+            }
+        } else {
+            skeletonLines = null;
+        }
     }
 
     /**

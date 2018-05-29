@@ -22,16 +22,16 @@ public class Client extends AsyncTask<Void,Void,String> {
     String dstAddress;
     int dstPort;
     String response = "";
-    TextView textResponse;
     byte[] data;
     int sizeBuffer;
     int numPoints;
+    PointCloudActivity activity;
     String mSent;
-    Client(String addr, int port, TextView textResponse,byte[] message) {
+    Client(String addr, int port,byte[] message,PointCloudActivity activity) {
         dstAddress = addr;
         dstPort = port;
-        this.textResponse = textResponse;
         data = message;
+        this.activity = activity;
         this.numPoints=numPoints;
         this.mSent = mSent;
     }
@@ -120,12 +120,14 @@ public class Client extends AsyncTask<Void,Void,String> {
 
     @Override
     protected void onPostExecute(String result) {
-        textResponse.setText(verifyDataSent(mSent,response));
+        activity.response.setText(verifyDataSent(response));
         super.onPostExecute(result);
     }
 
-    private String verifyDataSent(String sent, String received) {
-        return received;
+    private String verifyDataSent( String received) {
+        activity.DrawPoints(received);
+        //testar se eu recebi pontos mesmo e não exceptions
+        return "success transmiting the data!";
     }
 
 }

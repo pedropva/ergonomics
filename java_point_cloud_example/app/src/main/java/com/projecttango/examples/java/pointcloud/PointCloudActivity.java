@@ -16,6 +16,27 @@
 
 package com.projecttango.examples.java.pointcloud;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
+import android.graphics.Matrix;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
+import android.hardware.display.DisplayManager;
+import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
+import android.util.Log;
+import android.view.Display;
+import android.view.MotionEvent;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+
 import com.google.atap.tangoservice.Tango;
 import com.google.atap.tangoservice.TangoCameraIntrinsics;
 import com.google.atap.tangoservice.TangoConfig;
@@ -27,53 +48,24 @@ import com.google.atap.tangoservice.TangoOutOfDateException;
 import com.google.atap.tangoservice.TangoPointCloudData;
 import com.google.atap.tangoservice.TangoPoseData;
 import com.google.atap.tangoservice.experimental.TangoImageBuffer;
+import com.google.tango.depthinterpolation.TangoDepthInterpolation;
 import com.google.tango.support.TangoPointCloudManager;
 import com.google.tango.support.TangoSupport;
 import com.google.tango.ux.TangoUx;
 import com.google.tango.ux.UxExceptionEvent;
 import com.google.tango.ux.UxExceptionEventListener;
 
-
-import android.Manifest;
-import android.annotation.SuppressLint;
-import android.app.Activity;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.ImageFormat;
-import android.graphics.Matrix;
-import android.graphics.Rect;
-import android.graphics.YuvImage;
-import android.hardware.display.DisplayManager;
-import android.net.Uri;
-import android.os.Bundle;
-import android.provider.MediaStore;
-import android.support.v4.app.ActivityCompat;
-import android.util.Log;
-import android.view.Display;
-import android.view.MotionEvent;
-import android.view.View;
-import android.widget.Button;
-import android.widget.TextView;
-import android.widget.Toast;
-
-import org.rajawali3d.math.Matrix4;
 import org.rajawali3d.math.vector.Vector3;
 import org.rajawali3d.scene.ASceneFrameCallback;
 import org.rajawali3d.surface.RajawaliSurfaceView;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-
-import static java.lang.System.in;
+import java.util.Stack;
 
 /**
  * Main Activity class for the Point Cloud Sample. Handles the connection to the {@link Tango}
@@ -103,7 +95,7 @@ public class PointCloudActivity extends Activity {
     private TextView mSizeBufferTextView;
     TextView response;
     private double mPointCloudPreviousTimeStamp;
-    String ServerAddress = "192.168.200.94";
+    String ServerAddress = "192.168.200.71";
     String ServerPort = "30000";
     Button sendDataBt;
     float[] firstTransform=null;
@@ -131,6 +123,8 @@ public class PointCloudActivity extends Activity {
     private volatile TangoImageBuffer mImageBuffer = null;
     TangoPointCloudData pointCloud = null;
     private boolean takePhoto = false;
+    private boolean updateSkeleton = false;
+    Stack<Vector3> skeletonPoints;
 
 
     @Override
@@ -142,6 +136,7 @@ public class PointCloudActivity extends Activity {
         mAverageZTextView = (TextView) findViewById(R.id.average_z_textview);
         mSizeBufferTextView = (TextView) findViewById(R.id.size_buffer_textview);
         mSurfaceView = (RajawaliSurfaceView) findViewById(R.id.gl_surface_view);
+        Stack<Vector3> skeletonPoints = new Stack();
 
         response = (TextView) findViewById(R.id.responseTextView);
         sendDataBt =(Button) findViewById(R.id.send_data_button);
@@ -422,6 +417,14 @@ public class PointCloudActivity extends Activity {
                         }
                     } catch (TangoErrorException e) {
                         Log.e(TAG, "Could not get valid transform");
+                    }
+                    // Update current skeleton pose.
+                    try {
+                       if(updateSkeleton){
+                           mRenderer.updateSkeleton(skeletonPoints);
+                       }
+                    } catch (TangoErrorException e) {
+                        Log.e(TAG, "Could not get valid skeleton");
                     }
                 }
             }
@@ -752,11 +755,91 @@ public class PointCloudActivity extends Activity {
         if(imgbyte.length>0){
             Client myClient = new Client(ServerAddress
                     , Integer.parseInt(ServerPort)
-                    , response
-                    , imgbyte);
+                    , imgbyte
+                    ,this);
             myClient.execute();
         }
 
     }
+    /**
+     * Use the Tango Support Library with point cloud data to calculate the depth
+     * of the point closest to where the user touches the screen. It returns a
+     * Vector3 in OpenGL world space.
+     */
+    private float[] getDepthAt2DPosition(float u, float v,TangoImageBuffer imageBuffer,TangoPointCloudData pointCloud ) {//
+        if (pointCloud == null) {
+            return null;
+        }
+
+        double rgbTimestamp;
+        rgbTimestamp = imageBuffer.timestamp; // CPU.
+
+        TangoPoseData depthlTcolorPose = TangoSupport.getPoseAtTime(
+                rgbTimestamp,
+                TangoPoseData.COORDINATE_FRAME_CAMERA_DEPTH,
+                TangoPoseData.COORDINATE_FRAME_CAMERA_COLOR,
+                TangoSupport.ENGINE_TANGO,
+                TangoSupport.ENGINE_TANGO,
+                TangoSupport.ROTATION_IGNORED);
+        if (depthlTcolorPose.statusCode != TangoPoseData.POSE_VALID) {
+            Log.w(TAG, "Could not get color camera transform at time "
+                    + rgbTimestamp);
+            return null;
+        }
+
+        float[] depthPoint;
+        /*
+        depthPoint = TangoDepthInterpolation.getDepthAtPointBilateral(
+                pointCloud,
+                new double[] {0.0, 0.0, 0.0},
+                new double[] {0.0, 0.0, 0.0, 1.0},
+                imageBuffer,
+                u, v,
+                mDisplayRotation,
+                depthlTcolorPose.translation,
+                depthlTcolorPose.rotation);
+        */
+        depthPoint = TangoDepthInterpolation.getDepthAtPointNearestNeighbor(
+                pointCloud,
+                new double[] {0.0, 0.0, 0.0},
+                new double[] {0.0, 0.0, 0.0, 1.0},
+                u, v,
+                mDisplayRotation,
+                depthlTcolorPose.translation,
+                depthlTcolorPose.rotation);
+
+
+        if (depthPoint == null) {
+            return null;
+        }
+
+        return depthPoint;
+    }
+
+    public void DrawPoints(String response){
+        //dividir os pontos aqui
+        float[] curDepthPoint = null;
+        Log.i("Skeleton",response);
+        String[] people = response.split(" \"pose_keypoints_2d\":\\[");
+        for(int j=0; j < people.length-1;j++){
+            String[] keypointsString = people[j+1].split("]");
+            String[] keypoints = keypointsString[0].split(",");
+            for(int i = 0 ; i< 17; i++) {
+                Log.i("SkeletonKeypoints", keypoints[i]);
+            }
+            /*
+            for(int i = 0 ; i< 17; i++){
+                //colocar os pontos na point cloud aqui
+                curDepthPoint = getDepthAt2DPosition(Float.parseFloat(keypoints[i]),Float.parseFloat(keypoints[i]),mImageBuffer,pointCloud);
+                if(curDepthPoint != null && curDepthPoint.length == 3){
+                    //põe os skeleton points em 3D no stack e ativa a função de atualizar esqueletos na thread do openGL
+                    skeletonPoints.add(new Vector3(curDepthPoint[0],curDepthPoint[1],curDepthPoint[2]));
+                }
+            }
+            updateSkeleton = true;
+            */
+        }
+    }
+
 
 }

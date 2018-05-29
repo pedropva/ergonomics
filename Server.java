@@ -105,6 +105,7 @@ public class Server {
 			Process process = null; //THIS IS THE PROCESS WE ARE GOING TO CALL AFTER RECEIVEING THE MESSAGE
 			String responseFile = "\\output_openpose\\";
 			File imgDirectory = null;
+			String picturePath = null;
 			try{
 				dIn = new DataInputStream(hostThreadSocket.getInputStream());
 			} catch (IOException e) {
@@ -153,7 +154,8 @@ public class Server {
 							}else{
 								System.out.println("Done!");
 							}
-							FileOutputStream fos = new FileOutputStream(".\\images\\picture" + imgDirectory.list().length + ".jpg");
+							picturePath = ".\\images\\picture" + imgDirectory.list().length + ".jpg";
+							FileOutputStream fos = new FileOutputStream(picturePath);
 							System.out.println("Saving image to folder...");
 							fos.write(byteBuffer);
 							fos.close();
@@ -179,7 +181,7 @@ public class Server {
 			String msgReply = "Error while running the skeleton lib!";
 			System.out.println("Done Receiveing! Starting lib! ");
 			try{//run the libary
-				process = new ProcessBuilder("bin\\OpenPoseDemo.exe","--image_dir",".\\images" ,"--write_json",".\\output_openpose\\","--write_images",".\\output_photos_openpose\\" , "--display 0").start();
+				process = new ProcessBuilder("bin\\OpenPoseDemo.exe","--image_dir",".\\images" ,"--write_json",".\\output_openpose\\","--write_images",".\\output_photos_openpose\\" ).start();
 				//bin\OpenPoseDemo.exe --image_dir examples\media\
 				//bin\OpenPoseDemo.exe -image_dir .\images -write_json .\output_openpose\
 				//bin\OpenPoseDemo.exe -image_dir .\images -write_json .\output_openpose\ --write_images .\output_photos_openpose\ --display 0
