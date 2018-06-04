@@ -529,6 +529,7 @@ public class PointCloudActivity extends Activity {
         }else{
             response.setText("Error while extracting the image/point cloud.");
         }
+        sendDataBt.setEnabled(false);
     }
 
     /**
@@ -537,6 +538,7 @@ public class PointCloudActivity extends Activity {
     public void onClearClicked(View v) {
         response.setText("");
         pointCloudIsSelected = false;
+        sendDataBt.setEnabled(true);
     }
 
     @Override
@@ -750,7 +752,7 @@ public class PointCloudActivity extends Activity {
             Bitmap bm = BitmapFactory.decodeStream(fis);
             imgbyte = getBytesFromBitmap(bm);
             */
-
+        /*
         Log.d("CameraDemo", "Tamanho do buffer enviado:" + Integer.toString(imgbyte.length));
         if(imgbyte.length>0){
             Client myClient = new Client(ServerAddress
@@ -759,14 +761,15 @@ public class PointCloudActivity extends Activity {
                     ,this);
             myClient.execute();
         }
-
+        */
+        DrawPoints("{\"version\":1.2,\"people\":[{\"pose_keypoints_2d\":[529.452,283.343,0.867505,529.502,487.774,0.848145,356.847,503.271,0.821732,236.388,733.606,0.840489,110.522,953.903,0.811624,702.438,482.455,0.807057,817.873,733.84,0.886421,932.819,980.061,0.84181,440.614,995.706,0.671921,471.865,1314.96,0.832892,477.324,1577.11,0.826998,644.624,1000.92,0.670989,644.443,1320.32,0.820865,613.447,1608.63,0.809832,487.799,246.605,0.846628,566.378,246.717,0.896872,440.455,267.456,0.980416,623.907,267.776,0.916141],\"face_keypoints_2d\":[],\"hand_left_keypoints_2d\":[],\"hand_right_keypoints_2d\":[],\"pose_keypoints_3d\":[],\"face_keypoints_3d\":[],\"hand_left_keypoints_3d\":[],\"hand_right_keypoints_3d\":[]}]}");
     }
     /**
      * Use the Tango Support Library with point cloud data to calculate the depth
      * of the point closest to where the user touches the screen. It returns a
      * Vector3 in OpenGL world space.
      */
-    private float[] getDepthAt2DPosition(float u, float v,TangoImageBuffer imageBuffer,TangoPointCloudData pointCloud ) {//
+    private float[] getDepthAt2DPosition(float x, float y,TangoImageBuffer imageBuffer,TangoPointCloudData pointCloud ) {//
         if (pointCloud == null) {
             return null;
         }
@@ -803,7 +806,7 @@ public class PointCloudActivity extends Activity {
                 pointCloud,
                 new double[] {0.0, 0.0, 0.0},
                 new double[] {0.0, 0.0, 0.0, 1.0},
-                u, v,
+                x, y,
                 mDisplayRotation,
                 depthlTcolorPose.translation,
                 depthlTcolorPose.rotation);
@@ -819,26 +822,27 @@ public class PointCloudActivity extends Activity {
     public void DrawPoints(String response){
         //dividir os pontos aqui
         float[] curDepthPoint = null;
-        Log.i("Skeleton",response);
-        String[] people = response.split(" \"pose_keypoints_2d\":\\[");
-        for(int j=0; j < people.length-1;j++){
-            String[] keypointsString = people[j+1].split("]");
+        //{"version":1.2,"people":[{"pose_keypoints_2d":[529.452,283.343,0.867505,529.502,487.774,0.848145,356.847,503.271,0.821732,236.388,733.606,0.840489,110.522,953.903,0.811624,702.438,482.455,0.807057,817.873,733.84,0.886421,932.819,980.061,0.84181,440.614,995.706,0.671921,471.865,1314.96,0.832892,477.324,1577.11,0.826998,644.624,1000.92,0.670989,644.443,1320.32,0.820865,613.447,1608.63,0.809832,487.799,246.605,0.846628,566.378,246.717,0.896872,440.455,267.456,0.980416,623.907,267.776,0.916141],"face_keypoints_2d":[],"hand_left_keypoints_2d":[],"hand_right_keypoints_2d":[],"pose_keypoints_3d":[],"face_keypoints_3d":[],"hand_left_keypoints_3d":[],"hand_right_keypoints_3d":[]}]}
+        String[] people = response.split("pose_keypoints_2d\\\":\\[");
+        for(int j=1; j < people.length;j++){
+            String[] keypointsString = people[j].split("]");
+            Log.i("SkeletonKeypointsString", keypointsString[0]);
             String[] keypoints = keypointsString[0].split(",");
-            for(int i = 0 ; i< 17; i++) {
-                Log.i("SkeletonKeypoints", keypoints[i]);
-            }
-            /*
-            for(int i = 0 ; i< 17; i++){
+            Log.i("SkeletonKeypointsSize",Integer.toString(keypoints.length));//must be 54, its 18 points, composed by x,y, and confidence
+
+            for(int i = 0 ; i< keypoints.length; i = i+3) {
+                //Log.i("SkeletonKeypointsXY, "x:"+keypoints[i] + " y:"+keypoints[i+1]);
+
                 //colocar os pontos na point cloud aqui
-                curDepthPoint = getDepthAt2DPosition(Float.parseFloat(keypoints[i]),Float.parseFloat(keypoints[i]),mImageBuffer,pointCloud);
-                if(curDepthPoint != null && curDepthPoint.length == 3){
+                curDepthPoint = getDepthAt2DPosition(Float.parseFloat(keypoints[i]), Float.parseFloat(keypoints[i+1]), mImageBuffer, pointCloud);
+                if (curDepthPoint != null && curDepthPoint.length == 3) {//if the new point isnt null and it has x,y, and z
+                    Log.i("Point3D", "x:"+curDepthPoint[0] + " y:"+curDepthPoint[1] + " z:"+ curDepthPoint[2]);
                     //põe os skeleton points em 3D no stack e ativa a função de atualizar esqueletos na thread do openGL
-                    skeletonPoints.add(new Vector3(curDepthPoint[0],curDepthPoint[1],curDepthPoint[2]));
+                    //skeletonPoints.add(new Vector3(curDepthPoint[0], curDepthPoint[1], curDepthPoint[2]));
                 }
             }
-            updateSkeleton = true;
-            */
         }
+        //updateSkeleton = true;
     }
 
 
