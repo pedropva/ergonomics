@@ -20,6 +20,7 @@ import com.google.atap.tangoservice.TangoPoseData;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.util.Log;
 import android.view.MotionEvent;
 
 import org.rajawali3d.Object3D;
@@ -28,6 +29,7 @@ import org.rajawali3d.math.Matrix4;
 import org.rajawali3d.math.Quaternion;
 import org.rajawali3d.math.vector.Vector3;
 import org.rajawali3d.primitives.Line3D;
+import org.rajawali3d.primitives.Sphere;
 import org.rajawali3d.renderer.RajawaliRenderer;
 
 import com.projecttango.examples.java.pointcloud.rajawali.FrustumAxes;
@@ -46,6 +48,8 @@ public class PointCloudRajawaliRenderer extends RajawaliRenderer {
     private static final int MAX_NUMBER_OF_POINTS = 60000;
 
     private Stack<Object3D> skeletonLines;
+    private Stack<Object3D> skeletonSpheres;
+
 
 
     private TouchViewHandler mTouchViewHandler;
@@ -72,11 +76,14 @@ public class PointCloudRajawaliRenderer extends RajawaliRenderer {
         // Indicate four floats per point since the point cloud data comes
         // in XYZC format.
         mPointCloud = new PointCloud(MAX_NUMBER_OF_POINTS, 4);
+        skeletonLines = new Stack();
+        skeletonSpheres = new Stack();
         getCurrentScene().addChild(mPointCloud);
         getCurrentScene().setBackgroundColor(Color.WHITE);
         getCurrentCamera().setNearPlane(CAMERA_NEAR);
         getCurrentCamera().setFarPlane(CAMERA_FAR);
         getCurrentCamera().setFieldOfView(37.5);
+
     }
     
 
@@ -91,27 +98,61 @@ public class PointCloudRajawaliRenderer extends RajawaliRenderer {
         mPointCloud.setPosition(openGlTdepthMatrix.getTranslation());
         // Conjugating the Quaternion is needed because Rajawali uses left-handed convention.
         mPointCloud.setOrientation(new Quaternion().fromMatrix(openGlTdepthMatrix).conjugate());
+
     }
 
+    public void clearSkeleton(){
+        while(!skeletonLines.empty()) {
+            getCurrentScene().removeChild(skeletonLines.pop());
+        }
+        while(!skeletonSpheres.empty()) {
+            getCurrentScene().removeChild(skeletonSpheres.pop());
+        }
+    }
     public void updateSkeleton(Stack<Vector3> skeletonPoints){
-        if (skeletonLines != null) {
-            for(int i=0;i<skeletonPoints.size();i++) {
-                getCurrentScene().removeChild(skeletonLines.pop());
-            }
+        Log.i("skeleton renderer", "updating Skeleton");
+
+        /*
+        Stack points = new Stack();
+        points.add(new Vector3(0.2, 0.4, 0));
+        points.add(new Vector3(0.4, 0.7, 0.1));
+        points.add(new Vector3(0.2, 0.2, 0.3));
+        points.add(new Vector3(0.2, 0.4, 0.6));
+        Line3D line = new Line3D(points, 10, 0xfffff000);
+        Material material = new Material();
+        material.setColor(Color.RED);
+        line.setMaterial(material);
+        getCurrentScene().addChild(line);
+        */
+        while(!skeletonLines.empty()) {//remove the previous skeleton
+            getCurrentScene().removeChild(skeletonLines.pop());
+        }
+        while(!skeletonSpheres.empty()) {
+            getCurrentScene().removeChild(skeletonSpheres.pop());
         }
         if (skeletonPoints != null) {
             for(int i=0;i<skeletonPoints.size()-1;i++){
+                Sphere joint;
+                joint = new Sphere(0.05f, 24, 24);
+                Material m = new Material();
+                m.setColor(Color.RED);
+                joint.setMaterial(m);
+                joint.setPosition(skeletonPoints.get(i));
+                skeletonSpheres.add(joint);
+                getCurrentScene().addChild(skeletonSpheres.get(skeletonSpheres.size()-1));
+
+                /*currently not drawing bones
                 Stack<Vector3> bone = new Stack();
                 bone.add(skeletonPoints.get(i));
                 bone.add(skeletonPoints.get(i+1));
                 skeletonLines.add(new Line3D(bone, 50, Color.RED));
-                Material m = new Material();
-                m.setColor(Color.RED);
                 skeletonLines.get(i).setMaterial(m);
-                getCurrentScene().addChild(skeletonLines.get(i));
+                getCurrentScene().addChild(skeletonLines.get(skeletonLines.size()-1));
+                */
             }
         } else {
             skeletonLines = null;
+            skeletonSpheres = null;
         }
     }
 

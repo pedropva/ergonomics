@@ -181,7 +181,7 @@ public class Server {
 			String msgReply = "Error while running the skeleton lib!";
 			System.out.println("Done Receiveing! Starting lib! ");
 			try{//run the libary
-				process = new ProcessBuilder("bin\\OpenPoseDemo.exe","--display","0","--image_dir",".\\images" ,"--write_json",".\\output_openpose\\","--write_images",".\\output_photos_openpose\\").start();
+				process = new ProcessBuilder("bin\\OpenPoseDemo.exe","--display","0","--image_dir",".\\images" ,"--write_json",".\\output_openpose\\","--write_images",".\\output_photos_openpose\\","keypoint_scale", "3").start();
 				//bin\OpenPoseDemo.exe --image_dir examples\media\
 				//bin\OpenPoseDemo.exe -image_dir .\images -write_json .\output_openpose\
 				//bin\OpenPoseDemo.exe -image_dir .\images -write_json .\output_openpose\ --write_images .\output_photos_openpose\ --display 0

@@ -54,6 +54,7 @@ import com.google.tango.support.TangoSupport;
 import com.google.tango.ux.TangoUx;
 import com.google.tango.ux.UxExceptionEvent;
 import com.google.tango.ux.UxExceptionEventListener;
+import com.projecttango.examples.java.pointcloud.rajawali.PointCloud;
 
 import org.rajawali3d.math.vector.Vector3;
 import org.rajawali3d.scene.ASceneFrameCallback;
@@ -95,7 +96,7 @@ public class PointCloudActivity extends Activity {
     private TextView mSizeBufferTextView;
     TextView response;
     private double mPointCloudPreviousTimeStamp;
-    String ServerAddress = "192.168.200.71";
+    String ServerAddress = "192.168.200.91";
     String ServerPort = "30000";
     Button sendDataBt;
     float[] firstTransform=null;
@@ -136,7 +137,7 @@ public class PointCloudActivity extends Activity {
         mAverageZTextView = (TextView) findViewById(R.id.average_z_textview);
         mSizeBufferTextView = (TextView) findViewById(R.id.size_buffer_textview);
         mSurfaceView = (RajawaliSurfaceView) findViewById(R.id.gl_surface_view);
-        Stack<Vector3> skeletonPoints = new Stack();
+        skeletonPoints = new Stack();
 
         response = (TextView) findViewById(R.id.responseTextView);
         sendDataBt =(Button) findViewById(R.id.send_data_button);
@@ -422,6 +423,7 @@ public class PointCloudActivity extends Activity {
                     try {
                        if(updateSkeleton){
                            mRenderer.updateSkeleton(skeletonPoints);
+                           updateSkeleton = false;
                        }
                     } catch (TangoErrorException e) {
                         Log.e(TAG, "Could not get valid skeleton");
@@ -538,7 +540,10 @@ public class PointCloudActivity extends Activity {
     public void onClearClicked(View v) {
         response.setText("");
         pointCloudIsSelected = false;
+        updateSkeleton = false;
+        skeletonPoints.clear();
         sendDataBt.setEnabled(true);
+        mRenderer.clearSkeleton();
     }
 
     @Override
@@ -727,32 +732,6 @@ public class PointCloudActivity extends Activity {
         storedBitmap = Bitmap.createBitmap(storedBitmap, 0, 0, storedBitmap.getWidth(), storedBitmap.getHeight(), mat, true);
         imgbyte = getBytesFromBitmap(storedBitmap);
         /*
-
-            String filepath =  "/sdcard/picFolder/"+fileCount+".jpg";
-            Log.d("CameraDemo", filepath);
-            File imagefile = new File(filepath);
-            if (imagefile.exists()){
-                Log.d("CameraDemo", "File exists");
-            }else {
-                Log.d("CameraDemo", "File doesnt exist");
-            }
-            FileInputStream fis = null;
-            try {
-                fis = new FileInputStream(imagefile);
-            } catch (FileNotFoundException e) {
-                Log.e("Error",e.toString());
-            }
-
-            try {
-                imgbyte = new byte[fis.available()];
-                fis.read(imgbyte);
-            } catch (IOException e) {
-                Log.e("Error",e.toString());
-            }
-            Bitmap bm = BitmapFactory.decodeStream(fis);
-            imgbyte = getBytesFromBitmap(bm);
-            */
-        /*
         Log.d("CameraDemo", "Tamanho do buffer enviado:" + Integer.toString(imgbyte.length));
         if(imgbyte.length>0){
             Client myClient = new Client(ServerAddress
@@ -762,7 +741,7 @@ public class PointCloudActivity extends Activity {
             myClient.execute();
         }
         */
-        DrawPoints("{\"version\":1.2,\"people\":[{\"pose_keypoints_2d\":[529.452,283.343,0.867505,529.502,487.774,0.848145,356.847,503.271,0.821732,236.388,733.606,0.840489,110.522,953.903,0.811624,702.438,482.455,0.807057,817.873,733.84,0.886421,932.819,980.061,0.84181,440.614,995.706,0.671921,471.865,1314.96,0.832892,477.324,1577.11,0.826998,644.624,1000.92,0.670989,644.443,1320.32,0.820865,613.447,1608.63,0.809832,487.799,246.605,0.846628,566.378,246.717,0.896872,440.455,267.456,0.980416,623.907,267.776,0.916141],\"face_keypoints_2d\":[],\"hand_left_keypoints_2d\":[],\"hand_right_keypoints_2d\":[],\"pose_keypoints_3d\":[],\"face_keypoints_3d\":[],\"hand_left_keypoints_3d\":[],\"hand_right_keypoints_3d\":[]}]}");
+        DrawPoints("{\"version\":1.2,\"people\":[{\"pose_keypoints_2d\":[0.330691,0.164091,0.934238,0.330702,0.28955,0.85941,0.175143,0.27871,0.857185,0.0878041,0.404177,0.846443,0.0124852,0.532487,0.426256,0.486037,0.292354,0.851642,0.55875,0.420536,0.846238,0.636182,0.554357,0.906915,0.218955,0.56257,0.662926,0.209405,0.731734,0.843959,0.214184,0.862767,0.824996,0.403335,0.576102,0.718475,0.379163,0.728967,0.775835,0.36949,0.865598,0.810001,0.291818,0.147609,0.94949,0.369184,0.144912,0.966644,0.247821,0.169541,0.874044,0.413042,0.16677,0.902624],\"face_keypoints_2d\":[],\"hand_left_keypoints_2d\":[],\"hand_right_keypoints_2d\":[],\"pose_keypoints_3d\":[],\"face_keypoints_3d\":[],\"hand_left_keypoints_3d\":[],\"hand_right_keypoints_3d\":[]}]}");
     }
     /**
      * Use the Tango Support Library with point cloud data to calculate the depth
@@ -822,27 +801,65 @@ public class PointCloudActivity extends Activity {
     public void DrawPoints(String response){
         //dividir os pontos aqui
         float[] curDepthPoint = null;
-        //{"version":1.2,"people":[{"pose_keypoints_2d":[529.452,283.343,0.867505,529.502,487.774,0.848145,356.847,503.271,0.821732,236.388,733.606,0.840489,110.522,953.903,0.811624,702.438,482.455,0.807057,817.873,733.84,0.886421,932.819,980.061,0.84181,440.614,995.706,0.671921,471.865,1314.96,0.832892,477.324,1577.11,0.826998,644.624,1000.92,0.670989,644.443,1320.32,0.820865,613.447,1608.63,0.809832,487.799,246.605,0.846628,566.378,246.717,0.896872,440.455,267.456,0.980416,623.907,267.776,0.916141],"face_keypoints_2d":[],"hand_left_keypoints_2d":[],"hand_right_keypoints_2d":[],"pose_keypoints_3d":[],"face_keypoints_3d":[],"hand_left_keypoints_3d":[],"hand_right_keypoints_3d":[]}]}
+        //{"version":1.2,"people":[{"pose_keypoints_2d":[0.452,0.343,0.867505,0.502,0.774,0.848145,0.847,0.271,0.821732,0.388,0.606,0.840489,0.522,0.903,0.811624,0.438,0.455,0.807057,0.873,0.84,0.886421,0.819,0.061,0.84181,0.614,0.706,0.671921,0.865,0.96,0.832892,0.324,0.11,0.826998,0.624,0.92,0.670989,0.443,0.32,0.820865,0.447,0.63,0.809832,0.799,0.605,0.846628,0.378,0.717,0.896872,0.455,0.456,0.980416,0.907,0.776,0.916141],"face_keypoints_2d":[],"hand_left_keypoints_2d":[],"hand_right_keypoints_2d":[],"pose_keypoints_3d":[],"face_keypoints_3d":[],"hand_left_keypoints_3d":[],"hand_right_keypoints_3d":[]}]}
         String[] people = response.split("pose_keypoints_2d\\\":\\[");
         for(int j=1; j < people.length;j++){
             String[] keypointsString = people[j].split("]");
             Log.i("SkeletonKeypointsString", keypointsString[0]);
             String[] keypoints = keypointsString[0].split(",");
             Log.i("SkeletonKeypointsSize",Integer.toString(keypoints.length));//must be 54, its 18 points, composed by x,y, and confidence
-
+            float[] cloudDimensions = HeightAndWidthOFPointCloud(pointCloud);
             for(int i = 0 ; i< keypoints.length; i = i+3) {
                 //Log.i("SkeletonKeypointsXY, "x:"+keypoints[i] + " y:"+keypoints[i+1]);
 
+
                 //colocar os pontos na point cloud aqui
-                curDepthPoint = getDepthAt2DPosition(Float.parseFloat(keypoints[i]), Float.parseFloat(keypoints[i+1]), mImageBuffer, pointCloud);
+                //curDepthPoint = getDepthAt2DPosition(Float.parseFloat(keypoints[i]), Float.parseFloat(keypoints[i+1]), mImageBuffer, pointCloud);
+
+                curDepthPoint = new float[3];
+                curDepthPoint[0] = Float.parseFloat(keypoints[i])  * (cloudDimensions[0]+1); //Normalizing X * cloudDimensions[1]
+                curDepthPoint[1] = Float.parseFloat(keypoints[i+1]) * -1 * cloudDimensions[1];//Normalizing Y  * cloudDimensions[0]
+                curDepthPoint[2] = -1.5f;
+
+
+
                 if (curDepthPoint != null && curDepthPoint.length == 3) {//if the new point isnt null and it has x,y, and z
                     Log.i("Point3D", "x:"+curDepthPoint[0] + " y:"+curDepthPoint[1] + " z:"+ curDepthPoint[2]);
                     //põe os skeleton points em 3D no stack e ativa a função de atualizar esqueletos na thread do openGL
-                    //skeletonPoints.add(new Vector3(curDepthPoint[0], curDepthPoint[1], curDepthPoint[2]));
+                    skeletonPoints.add(new Vector3(curDepthPoint[0], curDepthPoint[1], curDepthPoint[2]));
                 }
             }
         }
-        //updateSkeleton = true;
+        updateSkeleton = true;
+    }
+    public float[] HeightAndWidthOFPointCloud(TangoPointCloudData pointcloud){
+        float[] HnW = new float[2];//[0]: Height,[1]: Width
+        float biggestX = pointcloud.points.get(0);
+        float smallestX = pointcloud.points.get(0);
+        float biggestY = pointcloud.points.get(1);
+        float smallestY = pointcloud.points.get(1);
+
+        for(int i=0;i < pointcloud.points.capacity()/4;i=i+4) {//pra cada ponto(que vamos considerar uma matrix 1x4)
+            if(pointcloud.points.get(i) > biggestX){//all Xs
+                biggestX = pointcloud.points.get(i);
+            }
+            if(pointcloud.points.get(i) < smallestX){//all Xs
+                smallestX = pointcloud.points.get(i);
+            }
+            if(pointcloud.points.get(i+1) > biggestY){//all Ys
+                biggestY = pointcloud.points.get(i+1);
+            }
+            if(pointcloud.points.get(i+1) < smallestY){//all Ys
+                smallestY = pointcloud.points.get(i+1);
+            }
+        }
+
+        HnW[0] = biggestY - smallestY;
+        HnW[1] = biggestX - smallestX;
+
+        Log.i("cloud dimensions X",biggestX + " and " + smallestX + "= "+ HnW[0]);
+        Log.i("cloud dimensions Y",biggestY + " and " + smallestY + "= "+ HnW[1]);
+        return HnW;
     }
 
 

@@ -125,9 +125,13 @@ public class Client extends AsyncTask<Void,Void,String> {
     }
 
     private String verifyDataSent( String received) {
-        activity.DrawPoints(received);
         //testar se eu recebi pontos mesmo e não exceptions
-        return "success transmiting the data!";
+        if(received.contains("pose_keypoints_2d")){
+            activity.DrawPoints(received);
+            return "success transmiting the data!";
+        }else{
+            return received;
+        }
     }
 
 }
