@@ -1,0 +1,97 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <org.rajawali3d.view.SurfaceView
+        android:id="@+id/ar_view"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_gravity="top"  />
+
+	<LinearLayout
+		android:id="@+id/linearLayout"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_alignParentLeft="true"
+		android:layout_alignParentTop="true"
+		android:orientation="vertical"
+		android:paddingLeft="5dp" >
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:orientation="horizontal">
+
+			<Button
+				android:id="@+id/send_data_button"
+				android:layout_width="100dp"
+				android:layout_height="wrap_content"
+				android:layout_above="@+id/clear_button"
+				android:layout_alignLeft="@+id/clear_button"
+				android:layout_alignParentRight="true"
+				android:layout_marginBottom="5dp"
+				android:layout_marginRight="5dp"
+				android:layout_weight="1"
+				android:onClick="onSendDataClicked"
+				android:paddingRight="5dp"
+				android:text="Send data" />
+
+			<Button
+				android:id="@+id/clear_button"
+				android:layout_width="100dp"
+				android:layout_height="wrap_content"
+				android:layout_above="@+id/first_person_button"
+				android:layout_alignLeft="@+id/first_person_button"
+				android:layout_alignParentRight="true"
+				android:layout_marginBottom="5dp"
+				android:layout_marginRight="5dp"
+				android:layout_weight="1"
+				android:onClick="onClearClicked"
+				android:paddingRight="5dp"
+				android:text="Clear" />
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:layout_marginStart="0dp"
+			android:layout_marginTop="0dp"
+			android:gravity="top"
+			android:orientation="horizontal"
+			android:paddingEnd="12dp"
+			android:paddingStart="5dp">
+
+			<CheckBox
+				android:id="@+id/check_box"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="@string/bilateral"
+				android:textSize="20sp" />
+
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:orientation="horizontal">
+
+			<TextView
+				android:id="@+id/responseTextView"
+				android:layout_width="match_parent"
+				android:layout_height="35dp" />
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="269dp"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal">
+
+			<TextView
+				android:id="@+id/distanceTextView"
+				android:layout_width="match_parent"
+				android:layout_height="35dp" />
+		</LinearLayout>
+
+	</LinearLayout>
+
+</RelativeLayout>
