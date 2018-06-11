@@ -121,7 +121,7 @@ public class PointToPointRenderer extends Renderer {
     protected void onRender(long elapsedRealTime, double deltaTime) {
         // Update the AR object if necessary.
         // Synchronize against concurrent access with the setter below.
-        synchronized (this) {
+        synchronized (this) { 
             if (mSkeletonUpdated) {
                 clearSkeleton();
                 if (mPoints != null) {

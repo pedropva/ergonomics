@@ -96,8 +96,12 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
         }
     }
 
-    private volatile TangoImageBuffer mImageBuffer = null;
-    TangoPointCloudData pointCloud = null;
+    //here are the variables we save when the user clicks the send data button to use later when the response is given(getDethpAtPoint)
+    private volatile TangoImageBuffer savedImageBuffer = null;
+    TangoPointCloudData savedPointCloud = null;
+    TangoPoseData savedDepthlTcolorPose = null;
+    double savedRgbTimestamp;
+
     private boolean takePhoto = false;
     private boolean updateSkeleton = false;
     Stack<MeasuredPoint> skeletonPoints = new Stack<MeasuredPoint>();
@@ -122,6 +126,7 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
     private double mCameraPoseTimestamp = 0;
     private TextView mDistanceTextview;
     private CheckBox mBilateralBox;
+    private CheckBox mDummieSkeleton;
     TextView response;
     String ServerAddress = "192.168.200.91";
     String ServerPort = "30000";
@@ -157,7 +162,8 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
         mSurfaceView.setOnTouchListener(this);
         mPointCloudManager = new TangoPointCloudManager();
         mDistanceTextview = (TextView) findViewById(R.id.distanceTextView);
-        mBilateralBox = (CheckBox) findViewById(R.id.check_box);
+        mBilateralBox = (CheckBox) findViewById(R.id.check_bilateral);
+        mDummieSkeleton = (CheckBox) findViewById(R.id.check_dummie);
 
         sendDataBt =(Button) findViewById(R.id.send_data_button);
         response = (TextView) findViewById(R.id.responseTextView);
@@ -448,6 +454,7 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
 
                             // If points have been measured, we transform the points to OpenGL
                             // space, and send it to mRenderer to render.
+
                             if (!skeletonPoints.empty()) {
                                 skeletonPointsInOpenGLSpace.clear();
                                 // To make sure drift correct pose is also applied to virtual
@@ -455,30 +462,23 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
                                 // We need to re-query the Start of Service to Depth camera
                                 // pose every frame. Note that you will need to use the timestamp
                                 // at the time when the points were measured to query the pose.
-                                for(int l =0 ; l < skeletonPoints.size();l++) {
+                                TangoSupport.MatrixTransformData openglTDepthArr0 =
+                                        TangoSupport.getMatrixTransformAtTime(
+                                                skeletonPoints.get(0).mTimestamp,//the timestamp of the first point is supposed to be the same for all other points
+                                                TangoPoseData.COORDINATE_FRAME_START_OF_SERVICE,
+                                                TangoPoseData.COORDINATE_FRAME_CAMERA_DEPTH,
+                                                TangoSupport.ENGINE_OPENGL,
+                                                TangoSupport.ENGINE_TANGO,
+                                                TangoSupport.ROTATION_IGNORED);
 
-                                    TangoSupport.MatrixTransformData openglTDepthArr0 =
-                                            TangoSupport.getMatrixTransformAtTime(
-                                                    skeletonPoints.get(l).mTimestamp,
-                                                    TangoPoseData.COORDINATE_FRAME_START_OF_SERVICE,
-                                                    TangoPoseData.COORDINATE_FRAME_CAMERA_DEPTH,
-                                                    TangoSupport.ENGINE_OPENGL,
-                                                    TangoSupport.ENGINE_TANGO,
-                                                    TangoSupport.ROTATION_IGNORED);
-
-                                    if (openglTDepthArr0.statusCode == TangoPoseData.POSE_VALID) {
-                                        //TODO CONSERTAR ISSO
-                                        float[] p0 = TangoTransformHelper.transformPoint(
-                                                openglTDepthArr0.matrix,
-                                                skeletonPoints.get(l).coords);
-
-                                        skeletonPointsInOpenGLSpace.push(
-                                                new Vector3(p0[0], p0[1], p0[2]));
-
+                                if (openglTDepthArr0.statusCode == TangoPoseData.POSE_VALID) {
+                                    for (int l = 0; l < skeletonPoints.size(); l++) {//here we recalculate the position of the points
+                                        float[] p0 = TangoTransformHelper.transformPoint(openglTDepthArr0.matrix,skeletonPoints.get(l).coords);//multiply(openglTDepthArr0.matrix,skeletonPoints.get(l).coords);
+                                        skeletonPointsInOpenGLSpace.push(new Vector3(p0[0], p0[1], p0[2]));
                                     }
                                 }
-                                Log.w(TAG, Integer.toString(skeletonPointsInOpenGLSpace.size()));
-                                mRenderer.setSkeleton(skeletonPointsInOpenGLSpace);
+
+                                mRenderer.setSkeleton(skeletonPointsInOpenGLSpace);// here the send the points in opengl coordinates to the render to be rendered
                             }else{
                                 mRenderer.clearSkeleton();
                             }
@@ -606,59 +606,37 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
      * Vector3 in OpenGL world space.
      */
     private MeasuredPoint getDepthAtPosition(float u, float v) {
-        TangoPointCloudData pointCloud = mPointCloudManager.getLatestPointCloud();
-        if (pointCloud == null) {
-            return null;
-        }
-
-        double rgbTimestamp;
-        TangoImageBuffer imageBuffer = mCurrentImageBuffer;
-        if (mBilateralBox.isChecked()) {
-            rgbTimestamp = imageBuffer.timestamp; // CPU.
-        } else {
-            rgbTimestamp = mRgbTimestampGlThread; // GPU.
-        }
-
-        TangoPoseData depthlTcolorPose = TangoSupport.getPoseAtTime(
-                rgbTimestamp,
-                TangoPoseData.COORDINATE_FRAME_CAMERA_DEPTH,
-                TangoPoseData.COORDINATE_FRAME_CAMERA_COLOR,
-                TangoSupport.ENGINE_TANGO,
-                TangoSupport.ENGINE_TANGO,
-                TangoSupport.ROTATION_IGNORED);
-        if (depthlTcolorPose.statusCode != TangoPoseData.POSE_VALID) {
-            Log.w(TAG, "Could not get color camera transform at time "
-                       + rgbTimestamp);
+        if (savedPointCloud == null) {
             return null;
         }
 
         float[] depthPoint;
         if (mBilateralBox.isChecked()) {
             depthPoint = TangoDepthInterpolation.getDepthAtPointBilateral(
-                    pointCloud,
+                    savedPointCloud,
                     new double[] {0.0, 0.0, 0.0},
                     new double[] {0.0, 0.0, 0.0, 1.0},
-                    imageBuffer,
+                    savedImageBuffer,
                     u, v,
                     mDisplayRotation,
-                    depthlTcolorPose.translation,
-                    depthlTcolorPose.rotation);
+                    savedDepthlTcolorPose.translation,
+                    savedDepthlTcolorPose.rotation);
         } else {
             depthPoint = TangoDepthInterpolation.getDepthAtPointNearestNeighbor(
-                    pointCloud,
+                    savedPointCloud,
                     new double[] {0.0, 0.0, 0.0},
                     new double[] {0.0, 0.0, 0.0, 1.0},
                     u, v,
                     mDisplayRotation,
-                    depthlTcolorPose.translation,
-                    depthlTcolorPose.rotation);
+                    savedDepthlTcolorPose.translation,
+                    savedDepthlTcolorPose.rotation);
         }
 
         if (depthPoint == null) {
             return null;
         }
 
-        return new MeasuredPoint(rgbTimestamp,depthPoint);
+        return new MeasuredPoint(savedRgbTimestamp,depthPoint);
     }
 
 
@@ -821,6 +799,28 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
     }
 
     public void sendImage(TangoImageBuffer buffer){
+        //before sending the image save the point cloud and the pose
+        savedPointCloud = mPointCloudManager.getLatestPointCloud();
+        savedImageBuffer = buffer;
+        if (mBilateralBox.isChecked()) {
+            savedRgbTimestamp = savedImageBuffer.timestamp; // CPU.
+        } else {
+            savedRgbTimestamp = mRgbTimestampGlThread; // GPU.
+        }
+
+        Log.w(TAG, "Timestamp of point:  " + savedRgbTimestamp);
+
+        savedDepthlTcolorPose = TangoSupport.getPoseAtTime(
+                savedRgbTimestamp,
+                TangoPoseData.COORDINATE_FRAME_CAMERA_DEPTH,
+                TangoPoseData.COORDINATE_FRAME_CAMERA_COLOR,
+                TangoSupport.ENGINE_TANGO,
+                TangoSupport.ENGINE_TANGO,
+                TangoSupport.ROTATION_IGNORED);
+        if (savedDepthlTcolorPose.statusCode != TangoPoseData.POSE_VALID) {
+            Log.w(TAG, "Could not get color camera transform at time "
+                    + savedRgbTimestamp);
+        }
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         YuvImage yuvImage = new YuvImage(buffer.data.array(), ImageFormat.NV21,buffer.width, buffer.height, null);
@@ -833,20 +833,41 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
         storedBitmap = Bitmap.createBitmap(storedBitmap, 0, 0, storedBitmap.getWidth(), storedBitmap.getHeight(), mat, true);
         imgbyte = getBytesFromBitmap(storedBitmap);
 
-        Log.d("CameraDemo", "Tamanho do buffer enviado:" + Integer.toString(imgbyte.length));
-        if(imgbyte.length>0){
-            Client myClient = new Client(ServerAddress
-                    , Integer.parseInt(ServerPort)
-                    , imgbyte
-                    ,this);
-            myClient.execute();
+        if(mDummieSkeleton.isChecked()){
+            DrawPoints("{\"version\":1.2,\"people\":[{\"pose_keypoints_2d\":[0.330691,0.164091,0.934238,0.330702,0.28955,0.85941,0.175143,0.27871,0.857185,0.0878041,0.404177,0.846443,0.0124852,0.532487,0.426256,0.486037,0.292354,0.851642,0.55875,0.420536,0.846238,0.636182,0.554357,0.906915,0.218955,0.56257,0.662926,0.209405,0.731734,0.843959,0.214184,0.862767,0.824996,0.403335,0.576102,0.718475,0.379163,0.728967,0.775835,0.36949,0.865598,0.810001,0.291818,0.147609,0.94949,0.369184,0.144912,0.966644,0.247821,0.169541,0.874044,0.413042,0.16677,0.902624],\"face_keypoints_2d\":[],\"hand_left_keypoints_2d\":[],\"hand_right_keypoints_2d\":[],\"pose_keypoints_3d\":[],\"face_keypoints_3d\":[],\"hand_left_keypoints_3d\":[],\"hand_right_keypoints_3d\":[]}]}");
+        }else{
+            Log.d("CameraDemo", "Tamanho do buffer enviado:" + Integer.toString(imgbyte.length));
+            if(imgbyte.length>0){
+                Client myClient = new Client(ServerAddress
+                        , Integer.parseInt(ServerPort)
+                        , imgbyte
+                        ,this);
+                myClient.execute();
+            }
         }
-
-        //DrawPoints("{\"version\":1.2,\"people\":[{\"pose_keypoints_2d\":[0.330691,0.164091,0.934238,0.330702,0.28955,0.85941,0.175143,0.27871,0.857185,0.0878041,0.404177,0.846443,0.0124852,0.532487,0.426256,0.486037,0.292354,0.851642,0.55875,0.420536,0.846238,0.636182,0.554357,0.906915,0.218955,0.56257,0.662926,0.209405,0.731734,0.843959,0.214184,0.862767,0.824996,0.403335,0.576102,0.718475,0.379163,0.728967,0.775835,0.36949,0.865598,0.810001,0.291818,0.147609,0.94949,0.369184,0.144912,0.966644,0.247821,0.169541,0.874044,0.413042,0.16677,0.902624],\"face_keypoints_2d\":[],\"hand_left_keypoints_2d\":[],\"hand_right_keypoints_2d\":[],\"pose_keypoints_3d\":[],\"face_keypoints_3d\":[],\"hand_left_keypoints_3d\":[],\"hand_right_keypoints_3d\":[]}]}");
     }
     public byte[] getBytesFromBitmap(Bitmap bitmap) {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.JPEG, 70, stream);
         return stream.toByteArray();
     }
+    // matrix-vector multiplication (y = Matrix a * 3Dcoords x)
+    public static float[] multiply(float[] a, float[] x) {
+        int m = 3;//number of lines
+        int n = 3;//number of collums
+        if (x.length != n) throw new RuntimeException("Illegal matrix dimensions.");
+        float[] y = new float[m];
+
+        for (int j = 0; j < n; j++) //point* matrix
+            for (int i = 0; i < m; i++)
+                y[j] += a[i*n + j] * x[i];
+
+        /*
+        for (int i = 0; i < m; i++) //matrix * point
+            for (int j = 0; j < n; j++)
+                y[i] += a[i*n+j] * x[j];
+        */
+        return y;
+    }
+
 }
