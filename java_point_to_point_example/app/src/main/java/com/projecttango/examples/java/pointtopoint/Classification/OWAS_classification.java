@@ -249,8 +249,7 @@ public class OWAS_classification {
 
         public PernasPosicao LegOWASClassification(Joint SkeletonPointAnkleRight, Joint SkeletonPointKneeRight,
                                                     Joint SkeletonPointAnkleLeft, Joint SkeletonPointKneeLeft,
-                                                 Joint SkeletonPointHipLeft, Joint SkeletonPointHipRight)
-        {
+                                                 Joint SkeletonPointHipLeft, Joint SkeletonPointHipRight) {
 
 
             PernasPosicao posicaoPernas = PernasPosicao.Desconhecida;
@@ -291,7 +290,7 @@ public class OWAS_classification {
             PointAnkleLeft.x = SkeletonPointAnkleLeft.x;
             PointAnkleLeft.y = SkeletonPointAnkleLeft.y;
             PointAnkleLeft.z = SkeletonPointAnkleLeft.z;
-            
+
             PointHipRight.x = SkeletonPointHipRight.x;
             PointHipRight.y = SkeletonPointHipRight.y;
             PointHipRight.z = SkeletonPointHipRight.z;
@@ -307,44 +306,28 @@ public class OWAS_classification {
 
             //TODO FINALIZAR A CLASSIFICAÇÃO DAS PERNAS
 
-            if ((Math.Point3Z0GetAngleBetween( SkeletonPointKneeRight,  SkeletonPointAnkleRight) > 80 ) & (Math.Point3Z0GetAngleBetween( SkeletonPointKneeLeft,  SkeletonPointAnkleLeft) > 80 ))//check if the knees are blend
+            if ((Math.Point3Z0GetAngleBetween(SkeletonPointKneeRight, SkeletonPointAnkleRight) > 80) || (Math.Point3Z0GetAngleBetween(SkeletonPointKneeLeft, SkeletonPointAnkleLeft) > 80))//test if one leg is straight
             {
-                if ((java.lang.Math.round(PointHipLeft.DistanceTo(PointAnkleLeft)) <= 0.35 || java.lang.Math.round(PointHipRight.DistanceTo(PointAnkleRight)) <= 0.35))//checks if the hip and the ankle are too close to not be kneeled
+                if ((Math.Point3Z0GetAngleBetween(SkeletonPointKneeRight, SkeletonPointAnkleRight) > 80) && (Math.Point3Z0GetAngleBetween(SkeletonPointKneeLeft, SkeletonPointAnkleLeft) > 80))//test if both legs are straight
                 {
-
-                    posicaoPernas = PernasPosicao.OneLegknee;
-                }
-                else
-                {
-                    posicaoPernas = PernasPosicao.twoLegUp;
+                    if ((java.lang.Math.round(PointHipLeft.DistanceTo(PointAnkleLeft)) > java.lang.Math.round(PointHipLeft.DistanceTo(PointKneeLeft))) || (java.lang.Math.round(PointHipRight.DistanceTo(PointAnkleRight)) > java.lang.Math.round(PointHipRight.DistanceTo(PointKneeRight))))//if both  knees are not flexed and are too far to be kneeled
+                    {
+                        posicaoPernas = PernasPosicao.twoLegUp;
+                    }
+                } else {
+                    posicaoPernas = PernasPosicao.OneLegUp;
                 }
             }
-
-            if ((Math.Point3Z0GetAngleBetween( SkeletonPointKneeRight,  SkeletonPointAnkleRight) > 80 ) || (Math.Point3Z0GetAngleBetween( SkeletonPointKneeLeft,  SkeletonPointAnkleLeft) > 80 ))//test if one leg is straight
+            if ((Math.Point3Z0GetAngleBetween(SkeletonPointKneeRight, SkeletonPointAnkleRight) <= 80) || (Math.Point3Z0GetAngleBetween(SkeletonPointKneeLeft, SkeletonPointAnkleLeft) <= 80))//test if one leg is bent
             {
-                posicaoPernas = PernasPosicao.OneLegUp;
-            }
-
-            if ((Math.Point3Z0GetAngleBetween( SkeletonPointKneeRight,  SkeletonPointAnkleRight) <= 80 ) & (Math.Point3Z0GetAngleBetween( SkeletonPointKneeLeft,  SkeletonPointAnkleLeft) <= 80 ))
-            {
-                if ((java.lang.Math.round(PointHipLeft.DistanceTo(PointKneeLeft)) <= 0.3 || java.lang.Math.round(PointHipRight.DistanceTo(PointKneeRight)) <= 0.3))
-                {
-                    posicaoPernas = PernasPosicao.OneLegknee;
-
-                }
-                else
-                {
-                    posicaoPernas = PernasPosicao.twoLegFlex;
-                }
-            }
-            if ((Math.Point3Z0GetAngleBetween( SkeletonPointKneeRight,  SkeletonPointAnkleRight) <= 80 & Math.Point3Z0GetAngleBetween( SkeletonPointKneeLeft,  SkeletonPointAnkleLeft) <= 80))
-            {
-                if ((java.lang.Math.round(PointHipLeft.DistanceTo(PointKneeLeft)) <= 0.3 || java.lang.Math.round(PointHipRight.DistanceTo(PointKneeRight)) <= 0.3))
-                {
-                    posicaoPernas = PernasPosicao.OneLegknee;
-                }
-                else
-                {
+                if ((Math.Point3Z0GetAngleBetween(SkeletonPointKneeRight, SkeletonPointAnkleRight) <= 80) & (Math.Point3Z0GetAngleBetween(SkeletonPointKneeLeft, SkeletonPointAnkleLeft) <= 80)) {//testing if the two of them ate bent
+                    if ((java.lang.Math.round(PointHipLeft.DistanceTo(PointAnkleLeft)) <= java.lang.Math.round(PointHipLeft.DistanceTo(PointKneeLeft))) || (java.lang.Math.round(PointHipRight.DistanceTo(PointAnkleRight)) <= java.lang.Math.round(PointHipRight.DistanceTo(PointKneeRight))))//if both  knees are flexed and are too close to not be kneeled
+                    {
+                        posicaoPernas = PernasPosicao.OneLegknee;
+                    } else {
+                        posicaoPernas = PernasPosicao.twoLegFlex;
+                    }
+                }else{
                     posicaoPernas = PernasPosicao.OneLegFlex;
                 }
             }
