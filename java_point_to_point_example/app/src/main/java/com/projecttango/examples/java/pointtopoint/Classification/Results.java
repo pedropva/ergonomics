@@ -1,4 +1,4 @@
-package com.projecttango.examples.java.pointtopoint;
+package com.projecttango.examples.java.pointtopoint.Classification;
 
 /**
  * Created by pedropva on 08/06/2018.

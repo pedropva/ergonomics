@@ -17,6 +17,7 @@ package com.projecttango.examples.java.pointtopoint;
 
 import com.google.atap.tangoservice.TangoPoseData;
 import com.google.tango.support.TangoSupport;
+import com.projecttango.examples.java.pointtopoint.Classification.Skeleton;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -50,8 +51,13 @@ public class PointToPointRenderer extends Renderer {
 
     private float[] textureCoords0 = new float[]{0.0F, 1.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F, 0.0F};
 
-    private Stack<Object3D> mSkeletonSpheres;
+    private Stack<Sphere> mSkeletonSpheres;
+    private Stack<Line3D> mSkeletonLines;
     private Stack<Vector3> mPoints;
+    Skeleton skeleton;
+    Material m;
+    Line3D line;
+    Stack<Vector3> pointLine;
     private boolean mSkeletonUpdated = false;
 
     // Augmented reality related fields.
@@ -65,8 +71,13 @@ public class PointToPointRenderer extends Renderer {
 
     @Override
     protected void initScene() {
-        mSkeletonSpheres = new Stack<Object3D>();
+        mSkeletonSpheres = new Stack<Sphere>();
+        mSkeletonLines = new Stack<Line3D>();
         mPoints = new Stack<Vector3>();
+        pointLine = new Stack<Vector3>();
+        skeleton = new Skeleton();
+        m = new Material();
+        m.setColor(Color.RED);
         // Create a quad covering the whole background and assign a texture to it where the
         // Tango color camera contents will be rendered.
         if (mBackgroundQuad == null) {
@@ -115,26 +126,139 @@ public class PointToPointRenderer extends Renderer {
         while(!mSkeletonSpheres.empty()) {
             getCurrentScene().removeChild(mSkeletonSpheres.pop());
         }
+        while(!mSkeletonLines.empty()) {
+            getCurrentScene().removeChild(mSkeletonLines.pop());
+        }
     }
 
     @Override
     protected void onRender(long elapsedRealTime, double deltaTime) {
         // Update the AR object if necessary.
         // Synchronize against concurrent access with the setter below.
-        synchronized (this) { 
+        synchronized (this) {
             if (mSkeletonUpdated) {
-                clearSkeleton();
+                //clearSkeleton();
                 if (mPoints != null) {
                     //Log.w(TAG, Integer.toString(mPoints.size()));
                     for(int i=0;i<mPoints.size();i++){
-                        Sphere joint;
-                        joint = new Sphere(0.03f, 6, 6);
-                        Material m = new Material();
-                        m.setColor(Color.RED);
-                        joint.setMaterial(m);
-                        joint.setPosition(mPoints.get(i));
-                        mSkeletonSpheres.add(joint);
-                        getCurrentScene().addChild(mSkeletonSpheres.get(mSkeletonSpheres.size()-1));
+                        if(!mSkeletonSpheres.empty() && mSkeletonSpheres.size() == mPoints.size()) {//if the points already exist, just move them
+                            mSkeletonSpheres.get(i).setPosition(mPoints.get(i));
+                        }else{
+                            Sphere joint;
+                            joint = new Sphere(0.03f, 6, 6);
+                            joint.setMaterial(m);
+                            mSkeletonSpheres.add(joint);
+                            getCurrentScene().addChild(mSkeletonSpheres.get(mSkeletonSpheres.size()-1));
+                        }
+                    }
+                    if(mPoints.size() == 18) {
+                        skeleton.setJoints(mPoints);
+                        if (mSkeletonLines.empty()) {
+                            //Neck
+                            pointLine.clear();
+                            pointLine.push(skeleton.Nose.toVector3());
+                            pointLine.push(skeleton.Neck.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Left Shoulder
+                            pointLine.clear();
+                            pointLine.push(skeleton.Neck.toVector3());
+                            pointLine.push(skeleton.LShoulder.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Right Shoulder
+                            pointLine.clear();
+                            pointLine.push(skeleton.Neck.toVector3());
+                            pointLine.push(skeleton.RShoulder.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Left UpperArm
+                            pointLine.clear();
+                            pointLine.push(skeleton.LShoulder.toVector3());
+                            pointLine.push(skeleton.LElbow.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Right UpperArm
+                            pointLine.clear();
+                            pointLine.push(skeleton.RShoulder.toVector3());
+                            pointLine.push(skeleton.RElbow.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Left LowerArm
+                            pointLine.clear();
+                            pointLine.push(skeleton.LElbow.toVector3());
+                            pointLine.push(skeleton.LWrist.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Right LowerArm
+                            pointLine.clear();
+                            pointLine.push(skeleton.RElbow.toVector3());
+                            pointLine.push(skeleton.RWrist.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Spine Left
+                            pointLine.clear();
+                            pointLine.push(skeleton.Neck.toVector3());
+                            pointLine.push(skeleton.LHip.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Spine Right
+                            pointLine.clear();
+                            pointLine.push(skeleton.Neck.toVector3());
+                            pointLine.push(skeleton.RHip.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Left Thigh
+                            pointLine.clear();
+                            pointLine.push(skeleton.LHip.toVector3());
+                            pointLine.push(skeleton.LKnee.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Right Thigh
+                            pointLine.clear();
+                            pointLine.push(skeleton.RHip.toVector3());
+                            pointLine.push(skeleton.RKnee.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Left Calf
+                            pointLine.clear();
+                            pointLine.push(skeleton.LKnee.toVector3());
+                            pointLine.push(skeleton.LAnkle.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                            //Right Calf
+                            pointLine.clear();
+                            pointLine.push(skeleton.RKnee.toVector3());
+                            pointLine.push(skeleton.RAnkle.toVector3());
+                            line = new Line3D(pointLine, 50, Color.RED);
+                            line.setMaterial(m);
+                            mSkeletonLines.add(line);
+                            getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }
                     }
                 }
                 mSkeletonUpdated = false;

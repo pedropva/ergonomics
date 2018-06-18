@@ -34,6 +34,14 @@ import com.google.tango.depthinterpolation.TangoDepthInterpolation;
 import com.google.tango.support.TangoPointCloudManager;
 import com.google.tango.support.TangoSupport;
 import com.google.tango.transformhelpers.TangoTransformHelper;
+import com.projecttango.examples.java.pointtopoint.Classification.BracosPosicao;
+import com.projecttango.examples.java.pointtopoint.Classification.CostaPosicao;
+import com.projecttango.examples.java.pointtopoint.Classification.OWAS_classification;
+import com.projecttango.examples.java.pointtopoint.Classification.OWAS_evaluation;
+import com.projecttango.examples.java.pointtopoint.Classification.PernasPosicao;
+import com.projecttango.examples.java.pointtopoint.Classification.Results;
+import com.projecttango.examples.java.pointtopoint.Classification.Skeleton;
+import com.projecttango.examples.java.pointtopoint.Classification.Weigth;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -124,10 +132,13 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
     private TangoConfig mConfig;
     private boolean mIsConnected = false;
     private double mCameraPoseTimestamp = 0;
-    private TextView mDistanceTextview;
     private CheckBox mBilateralBox;
     private CheckBox mDummieSkeleton;
+    Skeleton mSkeleton;
     TextView response;
+    TextView response_arms;
+    TextView response_back;
+    TextView response_legs;
     String ServerAddress = "192.168.200.91";
     String ServerPort = "30000";
     Button sendDataBt;
@@ -161,13 +172,14 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
         mSurfaceView.setSurfaceRenderer(mRenderer);
         mSurfaceView.setOnTouchListener(this);
         mPointCloudManager = new TangoPointCloudManager();
-        mDistanceTextview = (TextView) findViewById(R.id.distanceTextView);
         mBilateralBox = (CheckBox) findViewById(R.id.check_bilateral);
         mDummieSkeleton = (CheckBox) findViewById(R.id.check_dummie);
 
         sendDataBt =(Button) findViewById(R.id.send_data_button);
         response = (TextView) findViewById(R.id.responseTextView);
-
+        response_arms = (TextView) findViewById(R.id.response_bracos);
+        response_back = (TextView) findViewById(R.id.response_costas);
+        response_legs = (TextView) findViewById(R.id.response_pernas);
 
 
         DisplayManager displayManager = (DisplayManager) getSystemService(DISPLAY_SERVICE);
@@ -265,7 +277,7 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
                 }
             }
         });
-        mHandler.post(mUpdateUiLoopRunnable);
+        //mHandler.post(mUpdateUiLoopRunnable);
     }
 
     /**
@@ -473,8 +485,10 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
 
                                 if (openglTDepthArr0.statusCode == TangoPoseData.POSE_VALID) {
                                     for (int l = 0; l < skeletonPoints.size(); l++) {//here we recalculate the position of the points
-                                        float[] p0 = TangoTransformHelper.transformPoint(openglTDepthArr0.matrix,skeletonPoints.get(l).coords);//multiply(openglTDepthArr0.matrix,skeletonPoints.get(l).coords);
-                                        skeletonPointsInOpenGLSpace.push(new Vector3(p0[0], p0[1], p0[2]));
+                                        if(skeletonPoints.get(l).coords[0] != 0f && skeletonPoints.get(l).coords[1] != 0f && skeletonPoints.get(l).coords[2] != 0f) {
+                                            float[] p0 = TangoTransformHelper.transformPoint(openglTDepthArr0.matrix, skeletonPoints.get(l).coords);//multiply(openglTDepthArr0.matrix,skeletonPoints.get(l).coords);
+                                            skeletonPointsInOpenGLSpace.push(new Vector3(p0[0], p0[1], p0[2]));
+                                        }
                                     }
                                 }
 
@@ -555,6 +569,9 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
      */
     public void onClearClicked(View v) {
         response.setText("");
+        response_arms.setText("");
+        response_back.setText("");
+        response_legs.setText("");
         //pointCloudIsSelected = false;
         updateSkeleton = false;
         skeletonPoints.clear();
@@ -639,7 +656,7 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
         return new MeasuredPoint(savedRgbTimestamp,depthPoint);
     }
 
-
+/*
     // Debug text UI update loop, updating at 10Hz.
     private Runnable mUpdateUiLoopRunnable = new Runnable() {
         public void run() {
@@ -651,7 +668,7 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
             mHandler.postDelayed(this, UPDATE_UI_INTERVAL_MS);
         }
     };
-
+*/
     /**
      * Set the color camera background texture rotation and save the display rotation.
      */
@@ -755,6 +772,7 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
     public void DrawPoints(String response){
         //dividir os pontos aqui
         MeasuredPoint curDepthPoint = null;
+        float[] zeroDepth = {0f,0f,0f};//new float[3];
         //{"version":1.2,"people":[{"pose_keypoints_2d":[0.452,0.343,0.867505,0.502,0.774,0.848145,0.847,0.271,0.821732,0.388,0.606,0.840489,0.522,0.903,0.811624,0.438,0.455,0.807057,0.873,0.84,0.886421,0.819,0.061,0.84181,0.614,0.706,0.671921,0.865,0.96,0.832892,0.324,0.11,0.826998,0.624,0.92,0.670989,0.443,0.32,0.820865,0.447,0.63,0.809832,0.799,0.605,0.846628,0.378,0.717,0.896872,0.455,0.456,0.980416,0.907,0.776,0.916141],"face_keypoints_2d":[],"hand_left_keypoints_2d":[],"hand_right_keypoints_2d":[],"pose_keypoints_3d":[],"face_keypoints_3d":[],"hand_left_keypoints_3d":[],"hand_right_keypoints_3d":[]}]}
         String[] people = response.split("pose_keypoints_2d\\\":\\[");
         for(int j=1; j < people.length;j++){
@@ -770,16 +788,19 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
                     // Place point near the clicked point using the latest point cloud data.
                     // Synchronize against concurrent access to the RGB timestamp in the OpenGL thread
                     // and a possible service disconnection due to an onPause event.
-                    synchronized (this) {
-                        curDepthPoint = getDepthAtPosition(Float.parseFloat(keypoints[i]), Float.parseFloat(keypoints[i+1]));
+                    if(Float.parseFloat(keypoints[i]) != 0f && Float.parseFloat(keypoints[i+1]) != 0f ) {//if the point 2d was zero so dont even try to get the depth
+                        synchronized (this) {
+                            curDepthPoint = getDepthAtPosition(Float.parseFloat(keypoints[i]), Float.parseFloat(keypoints[i + 1]));
+                        }
                     }
-                    if (curDepthPoint != null) {//if the new point isnt null and it has x,y, and z
-                        Log.i("Point3D", "x:"+curDepthPoint.coords[2] + " y:"+curDepthPoint.coords[1] + " z:"+ curDepthPoint.coords[0]);
-                        //põe os skeleton points em 3D no stack e ativa a função de atualizar esqueletos na thread do openGL
-                        skeletonPoints.add(curDepthPoint);
-                    }else {
-                        Log.w(TAG, "Point was null.");
+                    if (curDepthPoint == null) {//if the new point isnt null and it has x,y, and z
+                        curDepthPoint = new MeasuredPoint(savedRgbTimestamp, zeroDepth);
+                        Log.w(TAG, "Point " + i / 3 + " was null.");
                     }
+                    Log.i("Point3D", "x:"+curDepthPoint.coords[2] + " y:"+curDepthPoint.coords[1] + " z:"+ curDepthPoint.coords[0]);
+                    //põe os skeleton points em 3D no stack e ativa a função de atualizar esqueletos na thread do openGL
+                    skeletonPoints.add(curDepthPoint);
+
 
                 } catch (TangoException t) {
                     Toast.makeText(getApplicationContext(),
@@ -795,6 +816,8 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
 
             }
         }
+        mSkeleton = new Skeleton(measuredPointToVector3(skeletonPoints));
+        classificateSkeletonOWAS(skeletonPoints);
         updateSkeleton = true;
     }
 
@@ -868,6 +891,61 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
                 y[i] += a[i*n+j] * x[j];
         */
         return y;
+    }
+    public void classificateSkeletonOWAS(final Stack points){
+        final OWAS_classification partsClassification;
+        final OWAS_evaluation partsEvaluation;
+        final PernasPosicao legs;
+        final BracosPosicao arms;
+        final CostaPosicao back;
+        final Weigth weight = Weigth.Nivel1;
+        final Results classification_result;
+        if(mSkeleton.isComplete()){
+            partsClassification = new OWAS_classification(mSkeleton);
+            legs = partsClassification.getPernasPosition();
+            arms = partsClassification.getBracoPosition();
+            back = partsClassification.getBackPosition();
+            partsEvaluation = new OWAS_evaluation(back,arms,legs,weight);
+            classification_result = partsEvaluation.evaluate();
+            runOnUiThread(new Runnable() {
+                public void run() {
+                    /////////////////////////////////set Final OWAS classification text//////////
+                    response.setText( "Classificação: " + partsEvaluation.getNameResults(classification_result));
+                    //////////////////////////////////set parts classification///////////////////
+                    //for legs
+                    response_legs.setText("Pernas: " + partsClassification.getNamePernasPositions(legs));
+                    //for arms
+                    response_arms.setText("Braços: " + partsClassification.getNameBracosPositions(arms));
+                    //for back
+                    response_back.setText("Coluna: " + partsClassification.getNameCostaPositions(back));
+                }
+            });
+        }else{
+            runOnUiThread(new Runnable() {
+                public void run() {
+                    response.setText("Não foi possivel classificar:" + Integer.toString(points.size()) + "/18 pontos recebidos.");
+                }
+            });
+        }
+    }
+    public Stack<Vector3> measuredPointToVector3(Stack <MeasuredPoint> original){
+        Stack<Vector3> stack = new Stack<Vector3>();
+        TangoSupport.MatrixTransformData openglTDepthArr0 =
+                TangoSupport.getMatrixTransformAtTime(
+                        original.get(0).mTimestamp,//the timestamp of the first point is supposed to be the same for all other points
+                        TangoPoseData.COORDINATE_FRAME_START_OF_SERVICE,
+                        TangoPoseData.COORDINATE_FRAME_CAMERA_DEPTH,
+                        TangoSupport.ENGINE_OPENGL,
+                        TangoSupport.ENGINE_TANGO,
+                        TangoSupport.ROTATION_IGNORED);
+
+        if (openglTDepthArr0.statusCode == TangoPoseData.POSE_VALID) {
+            for (int l = 0; l < original.size(); l++) {//here we recalculate the position of the points
+                float[] p0 = TangoTransformHelper.transformPoint(openglTDepthArr0.matrix, skeletonPoints.get(l).coords);//multiply(openglTDepthArr0.matrix,skeletonPoints.get(l).coords);
+                stack.add(new Vector3(p0[0], p0[1], p0[2]));
+            }
+        }
+        return stack;
     }
 
 }
