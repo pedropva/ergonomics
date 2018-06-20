@@ -128,7 +128,6 @@ public class Client extends AsyncTask<Void,Void,String> {
         //testar se eu recebi pontos mesmo e não exceptions
         if(received.contains("pose_keypoints_2d")){
             activity.DrawPoints(received);
-            return "Success transmiting the data!";
         }else if(received.contains("people\":[]")){
             return "No people detected";
         }

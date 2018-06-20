@@ -141,9 +141,9 @@ public class PointToPointRenderer extends Renderer {
                 if (mPoints != null) {
                     //Log.w(TAG, Integer.toString(mPoints.size()));
                     for(int i=0;i<mPoints.size();i++){
-                        if(!mSkeletonSpheres.empty() && mSkeletonSpheres.size() == mPoints.size()) {//if the points already exist, just move them
+                        if(!mSkeletonSpheres.empty() && mSkeletonSpheres.size() == mPoints.size() && !mPoints.get(i).isZero()) {//if the points already exist, just move them
                             mSkeletonSpheres.get(i).setPosition(mPoints.get(i));
-                        }else{
+                        }else if(!mPoints.get(i).isZero()){
                             Sphere joint;
                             joint = new Sphere(0.03f, 6, 6);
                             joint.setMaterial(m);
@@ -151,9 +151,9 @@ public class PointToPointRenderer extends Renderer {
                             getCurrentScene().addChild(mSkeletonSpheres.get(mSkeletonSpheres.size()-1));
                         }
                     }
-                    if(mPoints.size() == 18) {
+                    if(mPoints.size() == 18 && mSkeletonLines.empty()) {
                         skeleton.setJoints(mPoints);
-                        if (mSkeletonLines.empty()) {
+                        if (skeleton.Nose.isKnow() && skeleton.Neck.isKnow()) {
                             //Neck
                             pointLine.clear();
                             pointLine.push(skeleton.Nose.toVector3());
@@ -162,6 +162,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.Neck.isKnow() && skeleton.LShoulder.isKnow()) {
                             //Left Shoulder
                             pointLine.clear();
                             pointLine.push(skeleton.Neck.toVector3());
@@ -170,6 +171,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.Neck.isKnow() && skeleton.RShoulder.isKnow()) {
                             //Right Shoulder
                             pointLine.clear();
                             pointLine.push(skeleton.Neck.toVector3());
@@ -178,6 +180,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.LShoulder.isKnow() && skeleton.LElbow.isKnow()) {
                             //Left UpperArm
                             pointLine.clear();
                             pointLine.push(skeleton.LShoulder.toVector3());
@@ -186,6 +189,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.RShoulder.isKnow() && skeleton.RElbow.isKnow()) {
                             //Right UpperArm
                             pointLine.clear();
                             pointLine.push(skeleton.RShoulder.toVector3());
@@ -194,6 +198,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.LElbow.isKnow() && skeleton.LWrist.isKnow()) {
                             //Left LowerArm
                             pointLine.clear();
                             pointLine.push(skeleton.LElbow.toVector3());
@@ -202,6 +207,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.RElbow.isKnow() && skeleton.RWrist.isKnow()) {
                             //Right LowerArm
                             pointLine.clear();
                             pointLine.push(skeleton.RElbow.toVector3());
@@ -210,6 +216,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.Neck.isKnow() && skeleton.LHip.isKnow()) {
                             //Spine Left
                             pointLine.clear();
                             pointLine.push(skeleton.Neck.toVector3());
@@ -218,6 +225,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.Neck.isKnow() && skeleton.RHip.isKnow()) {
                             //Spine Right
                             pointLine.clear();
                             pointLine.push(skeleton.Neck.toVector3());
@@ -226,6 +234,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.LHip.isKnow() && skeleton.LKnee.isKnow()) {
                             //Left Thigh
                             pointLine.clear();
                             pointLine.push(skeleton.LHip.toVector3());
@@ -234,6 +243,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.RHip.isKnow() && skeleton.RKnee.isKnow()) {
                             //Right Thigh
                             pointLine.clear();
                             pointLine.push(skeleton.RHip.toVector3());
@@ -242,6 +252,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.LKnee.isKnow() && skeleton.LAnkle.isKnow()) {
                             //Left Calf
                             pointLine.clear();
                             pointLine.push(skeleton.LKnee.toVector3());
@@ -250,6 +261,7 @@ public class PointToPointRenderer extends Renderer {
                             line.setMaterial(m);
                             mSkeletonLines.add(line);
                             getCurrentScene().addChild(mSkeletonLines.get(mSkeletonLines.size() - 1));
+                        }if (skeleton.RKnee.isKnow() && skeleton.RAnkle.isKnow()) {
                             //Right Calf
                             pointLine.clear();
                             pointLine.push(skeleton.RKnee.toVector3());

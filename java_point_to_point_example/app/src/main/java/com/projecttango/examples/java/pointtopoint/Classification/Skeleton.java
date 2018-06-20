@@ -142,11 +142,4 @@ public class Skeleton {
             }
         }
     }
-    public boolean isComplete(){
-        if(LEar != null){
-            return true;
-        }else{
-            return false;
-        }
-    }
 }

@@ -134,7 +134,6 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
     private double mCameraPoseTimestamp = 0;
     private CheckBox mBilateralBox;
     private CheckBox mDummieSkeleton;
-    Skeleton mSkeleton;
     TextView response;
     TextView response_arms;
     TextView response_back;
@@ -488,10 +487,11 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
                                         if(skeletonPoints.get(l).coords[0] != 0f && skeletonPoints.get(l).coords[1] != 0f && skeletonPoints.get(l).coords[2] != 0f) {
                                             float[] p0 = TangoTransformHelper.transformPoint(openglTDepthArr0.matrix, skeletonPoints.get(l).coords);//multiply(openglTDepthArr0.matrix,skeletonPoints.get(l).coords);
                                             skeletonPointsInOpenGLSpace.push(new Vector3(p0[0], p0[1], p0[2]));
+                                        }else{
+                                            skeletonPointsInOpenGLSpace.push(new Vector3(0f, 0f, 0f));
                                         }
                                     }
                                 }
-
                                 mRenderer.setSkeleton(skeletonPointsInOpenGLSpace);// here the send the points in opengl coordinates to the render to be rendered
                             }else{
                                 mRenderer.clearSkeleton();
@@ -816,8 +816,8 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
 
             }
         }
-        mSkeleton = new Skeleton(measuredPointToVector3(skeletonPoints));
-        classificateSkeletonOWAS(skeletonPoints);
+        Skeleton mSkeleton = new Skeleton(measuredPointToVector3(skeletonPoints));
+        classificateSkeletonOWAS(mSkeleton);
         updateSkeleton = true;
     }
 
@@ -892,7 +892,7 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
         */
         return y;
     }
-    public void classificateSkeletonOWAS(final Stack points){
+    public void classificateSkeletonOWAS(Skeleton mSkeleton){
         final OWAS_classification partsClassification;
         final OWAS_evaluation partsEvaluation;
         final PernasPosicao legs;
@@ -900,33 +900,25 @@ public class PointToPointActivity extends Activity implements View.OnTouchListen
         final CostaPosicao back;
         final Weigth weight = Weigth.Nivel1;
         final Results classification_result;
-        if(mSkeleton.isComplete()){
-            partsClassification = new OWAS_classification(mSkeleton);
-            legs = partsClassification.getPernasPosition();
-            arms = partsClassification.getBracoPosition();
-            back = partsClassification.getBackPosition();
-            partsEvaluation = new OWAS_evaluation(back,arms,legs,weight);
-            classification_result = partsEvaluation.evaluate();
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    /////////////////////////////////set Final OWAS classification text//////////
-                    response.setText( "Classificação: " + partsEvaluation.getNameResults(classification_result));
-                    //////////////////////////////////set parts classification///////////////////
-                    //for legs
-                    response_legs.setText("Pernas: " + partsClassification.getNamePernasPositions(legs));
-                    //for arms
-                    response_arms.setText("Braços: " + partsClassification.getNameBracosPositions(arms));
-                    //for back
-                    response_back.setText("Coluna: " + partsClassification.getNameCostaPositions(back));
-                }
-            });
-        }else{
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    response.setText("Não foi possivel classificar:" + Integer.toString(points.size()) + "/18 pontos recebidos.");
-                }
-            });
-        }
+        partsClassification = new OWAS_classification(mSkeleton);
+        legs = partsClassification.getPernasPosition();
+        arms = partsClassification.getBracoPosition();
+        back = partsClassification.getBackPosition();
+        partsEvaluation = new OWAS_evaluation(back,arms,legs,weight);
+        classification_result = partsEvaluation.evaluate();
+        runOnUiThread(new Runnable() {
+            public void run() {
+                /////////////////////////////////set Final OWAS classification text//////////
+                response.setText( "Classificação: " + partsEvaluation.getNameResults(classification_result));
+                //////////////////////////////////set parts classification///////////////////
+                //for legs
+                response_legs.setText("Pernas: " + partsClassification.getNamePernasPositions(legs));
+                //for arms
+                response_arms.setText("Braços: " + partsClassification.getNameBracosPositions(arms));
+                //for back
+                response_back.setText("Coluna: " + partsClassification.getNameCostaPositions(back));
+            }
+        });
     }
     public Stack<Vector3> measuredPointToVector3(Stack <MeasuredPoint> original){
         Stack<Vector3> stack = new Stack<Vector3>();
